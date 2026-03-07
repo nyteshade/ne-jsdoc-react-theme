@@ -81,6 +81,15 @@ body {
   letter-spacing: -0.02em;
 }
 
+.theme-toggle {
+  cursor: pointer;
+  transition: transform 200ms ease;
+}
+
+.theme-toggle:hover {
+  transform: rotate(15deg);
+}
+
 .sidebar-scroll {
   flex: 1;
   overflow: hidden;

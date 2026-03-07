@@ -21,6 +21,8 @@ import {
   ComponentInstanceIcon,
   MixIcon,
   GlobeIcon,
+  SunIcon,
+  MoonIcon,
 } from '@radix-ui/react-icons';
 
 const KIND_ICONS = {
@@ -36,7 +38,7 @@ const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 480;
 const DEFAULT_SIDEBAR = 280;
 
-export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, children }) {
+export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, children, appearance, onToggleAppearance }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -180,20 +182,32 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
       >
         <Flex direction="column" height="100%">
           {/* Brand */}
-          <Flex className="sidebar-brand" align="center" gap="3" p="4">
-            <Box className="sidebar-logo">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Box>
-            <Flex direction="column" gap="0">
-              <Text size="2" weight="bold" className="sidebar-title">
-                {packageInfo?.name || 'API Docs'}
-              </Text>
-              {packageInfo?.version && (
-                <Text size="1" color="gray">{packageInfo.version}</Text>
-              )}
+          <Flex className="sidebar-brand" align="center" justify="between" p="4">
+            <Flex align="center" gap="3">
+              <Box className="sidebar-logo">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Box>
+              <Flex direction="column" gap="0">
+                <Text size="2" weight="bold" className="sidebar-title">
+                  {packageInfo?.name || 'API Docs'}
+                </Text>
+                {packageInfo?.version && (
+                  <Text size="1" color="gray">{packageInfo.version}</Text>
+                )}
+              </Flex>
             </Flex>
+            <IconButton
+              variant="ghost"
+              color="gray"
+              size="2"
+              onClick={onToggleAppearance}
+              title={appearance === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="theme-toggle"
+            >
+              {appearance === 'dark' ? <SunIcon /> : <MoonIcon />}
+            </IconButton>
           </Flex>
 
           {/* Search trigger */}
