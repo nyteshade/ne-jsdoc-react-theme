@@ -1,0 +1,45 @@
+{
+  "name": "jsdoc-react-theme",
+  "version": "1.0.0",
+  "description": "A modern JSDoc template built with React and Radix UI, inspired by AuthKit",
+  "main": "publish.js",
+  "bin": {
+    "jsdoc-react": "./bin/cli.js"
+  },
+  "files": [
+    "publish.js",
+    "build.js",
+    "bin/",
+    "src/",
+    "dist/*.js",
+    "dist/*.css"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "build:prod": "node build.js --minify",
+    "dev": "node build.js --watch",
+    "prepublishOnly": "node build.js --minify"
+  },
+  "keywords": [
+    "jsdoc",
+    "jsdoc-template",
+    "jsdoc-theme",
+    "documentation",
+    "radix-ui",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jsdoc": "^4.0.0",
+    "marked": "^12.0.0",
+    "highlight.js": "^11.9.0"
+  },
+  "devDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@radix-ui/themes": "^3.0.0",
+    "@radix-ui/react-icons": "^1.3.0",
+    "esbuild": "^0.25.0"
+  }
+}
