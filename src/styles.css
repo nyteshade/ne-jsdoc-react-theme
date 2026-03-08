@@ -140,6 +140,42 @@ body {
   text-align: left;
 }
 
+/* ── View mode selector ──────────────────────────────────── */
+
+.view-mode-bar {
+  display: flex;
+  align-items: center;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+  padding: 4px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-2);
+  color: var(--gray-9);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.view-mode-btn:hover {
+  background: var(--gray-3);
+  color: var(--gray-11);
+}
+
+.view-mode-btn--active {
+  background: var(--gray-3);
+  border-color: var(--gray-5);
+  color: var(--gray-12);
+}
+
 /* ── Navigation ───────────────────────────────────────────── */
 
 .nav-group-title {

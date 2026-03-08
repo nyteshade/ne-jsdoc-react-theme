@@ -23,6 +23,9 @@ import {
   GlobeIcon,
   SunIcon,
   MoonIcon,
+  LayersIcon,
+  StackIcon,
+  ListBulletIcon,
 } from '@radix-ui/react-icons';
 
 const KIND_ICONS = {
@@ -38,11 +41,106 @@ const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 480;
 const DEFAULT_SIDEBAR = 280;
 
+const VIEW_MODES = [
+  { id: 'default', label: 'Default', icon: ListBulletIcon },
+  { id: 'type', label: 'By Type', icon: LayersIcon },
+  { id: 'file', label: 'By File', icon: StackIcon },
+];
+
+const TYPE_ORDER = {
+  class: { title: 'Classes', order: 0 },
+  function: { title: 'Functions', order: 1 },
+  constant: { title: 'Constants', order: 2 },
+  member: { title: 'Members', order: 3 },
+  typedef: { title: 'Type Definitions', order: 4 },
+  module: { title: 'Modules', order: 5 },
+  interface: { title: 'Interfaces', order: 6 },
+  namespace: { title: 'Namespaces', order: 7 },
+  mixin: { title: 'Mixins', order: 8 },
+  event: { title: 'Events', order: 9 },
+};
+
+function collectAllNavItems(nav) {
+  const items = [];
+  for (const group of nav) {
+    // For the global group, use globalItems for individual entries
+    if (group.globalItems) {
+      for (const gi of group.globalItems) {
+        items.push(gi);
+      }
+    }
+    for (const item of group.items) {
+      if (item.kind !== 'global') {
+        items.push(item);
+      }
+    }
+  }
+  return items;
+}
+
+function buildNavByType(nav) {
+  const allItems = collectAllNavItems(nav);
+  const groups = {};
+
+  for (const item of allItems) {
+    const kind = item.kind || 'member';
+    const info = TYPE_ORDER[kind] || { title: kind.charAt(0).toUpperCase() + kind.slice(1), order: 99 };
+    if (!groups[kind]) {
+      groups[kind] = { title: info.title, order: info.order, items: [] };
+    }
+    groups[kind].items.push(item);
+  }
+
+  return Object.values(groups)
+    .sort((a, b) => a.order - b.order)
+    .map(g => ({
+      title: g.title,
+      items: g.items.sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .filter(g => g.items.length > 0);
+}
+
+function buildNavByFile(nav) {
+  const allItems = collectAllNavItems(nav);
+  const groups = {};
+
+  for (const item of allItems) {
+    const fname = item.filename || 'Unknown';
+    if (!groups[fname]) {
+      groups[fname] = { title: fname, items: [] };
+    }
+    groups[fname].items.push(item);
+  }
+
+  return Object.values(groups)
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .map(g => ({
+      ...g,
+      items: g.items.sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .filter(g => g.items.length > 0);
+}
+
+function buildNavDefault(nav) {
+  // Sort items alphabetically within each group
+  return nav.map(group => ({
+    ...group,
+    items: [...group.items].sort((a, b) => a.name.localeCompare(b.name)),
+  }));
+}
+
 export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, children, appearance, onToggleAppearance }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('jsdoc-nav-view');
+      if (saved && VIEW_MODES.some(m => m.id === saved)) return saved;
+    } catch (_) {}
+    return 'default';
+  });
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try {
       const saved = localStorage.getItem('jsdoc-sidebar-width');
@@ -57,6 +155,20 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
   useEffect(() => {
     try { localStorage.setItem('jsdoc-sidebar-width', String(sidebarWidth)); } catch (_) {}
   }, [sidebarWidth]);
+
+  // Persist view mode
+  useEffect(() => {
+    try { localStorage.setItem('jsdoc-nav-view', viewMode); } catch (_) {}
+  }, [viewMode]);
+
+  // Compute nav groups based on view mode
+  const computedNav = useMemo(() => {
+    switch (viewMode) {
+      case 'type': return buildNavByType(nav);
+      case 'file': return buildNavByFile(nav);
+      default: return buildNavDefault(nav);
+    }
+  }, [nav, viewMode]);
 
   // Sidebar resize handling
   const handleResizeStart = useCallback((e) => {
@@ -224,6 +336,26 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
 
           <Separator size="4" />
 
+          {/* View mode selector */}
+          <Flex className="view-mode-bar" px="3" py="2" gap="1">
+            {VIEW_MODES.map((mode) => {
+              const Icon = mode.icon;
+              return (
+                <button
+                  key={mode.id}
+                  className={`view-mode-btn ${viewMode === mode.id ? 'view-mode-btn--active' : ''}`}
+                  onClick={() => setViewMode(mode.id)}
+                  title={mode.label}
+                >
+                  <Icon width="14" height="14" />
+                  <span>{mode.label}</span>
+                </button>
+              );
+            })}
+          </Flex>
+
+          <Separator size="4" />
+
           {/* Navigation */}
           <ScrollArea className="sidebar-scroll">
             <Box p="3">
@@ -236,7 +368,7 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
                 <Text size="2">Overview</Text>
               </a>
 
-              {nav.map((group) => (
+              {computedNav.map((group) => (
                 <Box key={group.title} mt="4">
                   <Text size="1" weight="medium" color="gray" className="nav-group-title">
                     {group.title}

@@ -33,7 +33,7 @@ function processDoclets(data) {
         doclet: serializeDoclet(mod),
         members: serializeChildren(children),
       });
-      navGroup.items.push({ name: mod.name, slug });
+      navGroup.items.push({ name: mod.name, slug, kind: 'module', filename: mod.meta ? (mod.meta.shortpath || mod.meta.filename || '') : '' });
     }
     nav.push(navGroup);
   }
@@ -51,7 +51,7 @@ function processDoclets(data) {
         doclet: serializeDoclet(cls),
         members: serializeChildren(children),
       });
-      navGroup.items.push({ name: cls.name, slug });
+      navGroup.items.push({ name: cls.name, slug, kind: 'class', filename: cls.meta ? (cls.meta.shortpath || cls.meta.filename || '') : '' });
     }
     nav.push(navGroup);
   }
@@ -69,7 +69,7 @@ function processDoclets(data) {
         doclet: serializeDoclet(iface),
         members: serializeChildren(children),
       });
-      navGroup.items.push({ name: iface.name, slug });
+      navGroup.items.push({ name: iface.name, slug, kind: 'interface', filename: iface.meta ? (iface.meta.shortpath || iface.meta.filename || '') : '' });
     }
     nav.push(navGroup);
   }
@@ -87,7 +87,7 @@ function processDoclets(data) {
         doclet: serializeDoclet(ns),
         members: serializeChildren(children),
       });
-      navGroup.items.push({ name: ns.name, slug });
+      navGroup.items.push({ name: ns.name, slug, kind: 'namespace', filename: ns.meta ? (ns.meta.shortpath || ns.meta.filename || '') : '' });
     }
     nav.push(navGroup);
   }
@@ -105,7 +105,7 @@ function processDoclets(data) {
         doclet: serializeDoclet(mixin),
         members: serializeChildren(children),
       });
-      navGroup.items.push({ name: mixin.name, slug });
+      navGroup.items.push({ name: mixin.name, slug, kind: 'mixin', filename: mixin.meta ? (mixin.meta.shortpath || mixin.meta.filename || '') : '' });
     }
     nav.push(navGroup);
   }
@@ -124,9 +124,18 @@ function processDoclets(data) {
   ];
 
   if (allGlobals.length) {
+    // For "by type" and "by file" views, create individual nav items for each global
+    const globalNavItems = [];
+    for (const g of allGlobals) {
+      const fname = g.meta ? (g.meta.shortpath || g.meta.filename || '') : '';
+      globalNavItems.push({ name: g.name, slug: 'global', kind: g.kind, filename: fname });
+    }
+
     nav.push({
       title: 'Global',
-      items: [{ name: 'Global', slug: 'global' }],
+      items: [{ name: 'Global', slug: 'global', kind: 'global', filename: '' }],
+      // Individual items for alternative views
+      globalItems: globalNavItems,
     });
     pages.push({
       slug: 'global',
