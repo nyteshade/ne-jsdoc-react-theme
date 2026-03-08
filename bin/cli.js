@@ -88,7 +88,7 @@ if (configFile) {
 }
 
 function run(configPath) {
-  const jsdocBin = path.resolve(__dirname, '..', 'node_modules', '.bin', 'jsdoc');
+  const jsdocBin = require.resolve('jsdoc/jsdoc.js', { paths: [path.resolve(__dirname, '..')] });
   try {
     execSync(`"${jsdocBin}" -c "${configPath}"`, { stdio: 'inherit' });
     console.log(`\n  Documentation generated at ./${path.relative(process.cwd(), path.resolve(output))}/\n`);
