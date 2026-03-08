@@ -72,7 +72,12 @@ exports.publish = function (taffyData, opts) {
       },
     });
 
-    readme = marked.parse(fs.readFileSync(opts.readme, 'utf8'));
+    // JSDoc's markdown plugin may have already rendered opts.readme into HTML
+    if (opts.readme.startsWith('<')) {
+      readme = opts.readme;
+    } else if (fs.existsSync(opts.readme)) {
+      readme = marked.parse(fs.readFileSync(opts.readme, 'utf8'));
+    }
   }
 
   // Re-process after link resolution to get final data
