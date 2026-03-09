@@ -2,7 +2,8 @@
 
 :root {
   --sidebar-width: 280px;
-  --content-max-width: 900px;
+  --content-max-width: 1100px;
+  --page-toc-width: 220px;
 }
 
 * {
@@ -140,49 +141,57 @@ body {
   text-align: left;
 }
 
-/* ── View mode selector ──────────────────────────────────── */
+/* ── Section jump links ───────────────────────────────────── */
 
-.view-mode-bar {
-  display: flex;
-  align-items: center;
-}
-
-.view-mode-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  justify-content: center;
-  padding: 4px 6px;
-  background: transparent;
-  border: 1px solid transparent;
+.section-jump {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-11);
+  background: var(--gray-3);
+  border: 1px solid var(--gray-5);
   border-radius: var(--radius-2);
-  color: var(--gray-9);
-  font-size: 11px;
-  font-family: inherit;
   cursor: pointer;
   transition: all 120ms ease;
-  white-space: nowrap;
+  font-family: inherit;
+  line-height: 1.6;
 }
 
-.view-mode-btn:hover {
-  background: var(--gray-3);
-  color: var(--gray-11);
-}
-
-.view-mode-btn--active {
-  background: var(--gray-3);
-  border-color: var(--gray-5);
-  color: var(--gray-12);
+.section-jump:hover {
+  background: var(--accent-3);
+  color: var(--accent-11);
+  border-color: var(--accent-7);
 }
 
 /* ── Navigation ───────────────────────────────────────────── */
 
 .nav-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-12);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 11px !important;
-  padding: var(--space-1) var(--space-2);
+  letter-spacing: 0.06em;
+  padding: 6px var(--space-2);
+  margin-bottom: 2px;
+  background: var(--gray-3);
+  border-radius: var(--radius-2);
+  border-left: 3px solid var(--accent-9);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-group-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-9);
+  background: var(--gray-4);
+  border-radius: var(--radius-1);
+  padding: 0 5px;
+  line-height: 1.6;
 }
 
 .nav-link {
@@ -336,6 +345,152 @@ body {
   font-family: 'JetBrains Mono', var(--code-font-family), monospace;
 }
 
+/* ── Entity page layout (content + right TOC) ────────────── */
+
+.entity-page-layout {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+.entity-page-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Page TOC (right-hand sticky nav) ────────────────────── */
+
+.page-toc {
+  position: sticky;
+  top: var(--space-5);
+  width: var(--page-toc-width);
+  min-width: var(--page-toc-width);
+  max-height: calc(100vh - var(--space-9));
+  overflow-y: auto;
+  padding: var(--space-3);
+  border-left: 1px solid var(--gray-4);
+  font-size: var(--font-size-1);
+}
+
+.page-toc::-webkit-scrollbar {
+  width: 4px;
+}
+
+.page-toc::-webkit-scrollbar-thumb {
+  background: var(--gray-4);
+  border-radius: 2px;
+}
+
+.page-toc-title {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gray-9);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--gray-4);
+}
+
+.page-toc-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 5px 4px;
+  margin-top: 2px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-1);
+  color: var(--gray-12);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.page-toc-section:hover {
+  background: var(--gray-3);
+}
+
+.page-toc-section-text {
+  text-align: left;
+}
+
+.page-toc-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--gray-8);
+  background: var(--gray-3);
+  border-radius: var(--radius-1);
+  padding: 0 4px;
+  line-height: 1.5;
+}
+
+.page-toc-items {
+  padding-left: 16px;
+}
+
+.page-toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 3px 6px;
+  margin: 0;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--gray-10);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', var(--code-font-family), monospace;
+  cursor: pointer;
+  transition: all 100ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-toc-item:hover {
+  color: var(--gray-12);
+  background: var(--gray-3);
+}
+
+.page-toc-item--active {
+  color: var(--accent-11);
+  border-left-color: var(--accent-9);
+  background: var(--accent-2);
+}
+
+.page-toc-sibling {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-1);
+  color: var(--gray-11);
+  text-decoration: none;
+  font-size: 11px;
+  transition: all 100ms ease;
+}
+
+.page-toc-sibling:hover {
+  background: var(--gray-3);
+  color: var(--gray-12);
+}
+
+.page-toc-sibling--current {
+  color: var(--accent-11);
+  background: var(--accent-2);
+  font-weight: 600;
+}
+
+.page-toc-sibling-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', var(--code-font-family), monospace;
+}
+
 /* ── Section titles ───────────────────────────────────────── */
 
 .section-title {
@@ -463,6 +618,28 @@ body {
 .hljs-operator { color: var(--gray-10); }
 .hljs-property { color: var(--blue-11); }
 
+/* ── File group titles (functions page) ───────────────────── */
+
+.file-group-title {
+  display: block;
+  font-family: 'JetBrains Mono', var(--code-font-family), monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-10);
+  padding: var(--space-1) var(--space-2);
+  background: var(--gray-2);
+  border: 1px solid var(--gray-4);
+  border-radius: var(--radius-2);
+  margin-bottom: var(--space-3);
+}
+
+/* ── Constant sub-members ────────────────────────────────── */
+
+.constant-children {
+  border-left: 2px solid var(--gray-5);
+  padding-left: var(--space-3);
+}
+
 /* ── Class link cards ─────────────────────────────────────── */
 
 .class-link-card {
@@ -589,6 +766,12 @@ body {
   top: var(--space-3);
   left: var(--space-3);
   z-index: 30;
+}
+
+@media (max-width: 1100px) {
+  .page-toc {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) {

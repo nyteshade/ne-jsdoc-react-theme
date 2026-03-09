@@ -4,10 +4,10 @@ import '@radix-ui/themes/styles.css';
 import './styles.css';
 import { App } from './App';
 
-const data = window.__JSDOC_DATA__;
+const docs = globalThis[Symbol.for('jsdoc.content')];
 const root = createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App data={data} />
+    <App docs={docs} />
   </React.StrictMode>
 );

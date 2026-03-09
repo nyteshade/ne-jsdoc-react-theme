@@ -16,131 +16,32 @@ import {
   HamburgerMenuIcon,
   Cross1Icon,
   HomeIcon,
-  FileTextIcon,
-  CubeIcon,
-  ComponentInstanceIcon,
-  MixIcon,
-  GlobeIcon,
   SunIcon,
   MoonIcon,
-  LayersIcon,
-  StackIcon,
-  ListBulletIcon,
 } from '@radix-ui/react-icons';
-
-const KIND_ICONS = {
-  module: FileTextIcon,
-  class: CubeIcon,
-  interface: ComponentInstanceIcon,
-  namespace: MixIcon,
-  mixin: MixIcon,
-  global: GlobeIcon,
-};
 
 const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 480;
 const DEFAULT_SIDEBAR = 280;
 
-const VIEW_MODES = [
-  { id: 'default', label: 'Default', icon: ListBulletIcon },
-  { id: 'type', label: 'By Type', icon: LayersIcon },
-  { id: 'file', label: 'By File', icon: StackIcon },
-];
-
-const TYPE_ORDER = {
-  class: { title: 'Classes', order: 0 },
-  function: { title: 'Functions', order: 1 },
-  constant: { title: 'Constants', order: 2 },
-  member: { title: 'Members', order: 3 },
-  typedef: { title: 'Type Definitions', order: 4 },
-  module: { title: 'Modules', order: 5 },
-  interface: { title: 'Interfaces', order: 6 },
-  namespace: { title: 'Namespaces', order: 7 },
-  mixin: { title: 'Mixins', order: 8 },
-  event: { title: 'Events', order: 9 },
+const KIND_COLORS = {
+  class: 'red',
+  interface: 'orange',
+  mixin: 'plum',
+  namespace: 'green',
+  function: 'green',
+  object: 'cyan',
+  constant: 'blue',
+  property: 'blue',
+  typedef: 'orange',
+  event: 'plum',
 };
 
-function collectAllNavItems(nav) {
-  const items = [];
-  for (const group of nav) {
-    // For the global group, use globalItems for individual entries
-    if (group.globalItems) {
-      for (const gi of group.globalItems) {
-        items.push(gi);
-      }
-    }
-    for (const item of group.items) {
-      if (item.kind !== 'global') {
-        items.push(item);
-      }
-    }
-  }
-  return items;
-}
-
-function buildNavByType(nav) {
-  const allItems = collectAllNavItems(nav);
-  const groups = {};
-
-  for (const item of allItems) {
-    const kind = item.kind || 'member';
-    const info = TYPE_ORDER[kind] || { title: kind.charAt(0).toUpperCase() + kind.slice(1), order: 99 };
-    if (!groups[kind]) {
-      groups[kind] = { title: info.title, order: info.order, items: [] };
-    }
-    groups[kind].items.push(item);
-  }
-
-  return Object.values(groups)
-    .sort((a, b) => a.order - b.order)
-    .map(g => ({
-      title: g.title,
-      items: g.items.sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    .filter(g => g.items.length > 0);
-}
-
-function buildNavByFile(nav) {
-  const allItems = collectAllNavItems(nav);
-  const groups = {};
-
-  for (const item of allItems) {
-    const fname = item.filename || 'Unknown';
-    if (!groups[fname]) {
-      groups[fname] = { title: fname, items: [] };
-    }
-    groups[fname].items.push(item);
-  }
-
-  return Object.values(groups)
-    .sort((a, b) => a.title.localeCompare(b.title))
-    .map(g => ({
-      ...g,
-      items: g.items.sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    .filter(g => g.items.length > 0);
-}
-
-function buildNavDefault(nav) {
-  // Sort items alphabetically within each group
-  return nav.map(group => ({
-    ...group,
-    items: [...group.items].sort((a, b) => a.name.localeCompare(b.name)),
-  }));
-}
-
-export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, children, appearance, onToggleAppearance }) {
+export function Layout({ docs, currentSlug, onNavigate, appearance, onToggleAppearance, children }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [viewMode, setViewMode] = useState(() => {
-    try {
-      const saved = localStorage.getItem('jsdoc-nav-view');
-      if (saved && VIEW_MODES.some(m => m.id === saved)) return saved;
-    } catch (_) {}
-    return 'default';
-  });
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     try {
       const saved = localStorage.getItem('jsdoc-sidebar-width');
@@ -150,25 +51,12 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
   });
   const [isResizing, setIsResizing] = useState(false);
   const searchInputRef = useRef(null);
+  const sidebarScrollRef = useRef(null);
 
   // Persist sidebar width
   useEffect(() => {
     try { localStorage.setItem('jsdoc-sidebar-width', String(sidebarWidth)); } catch (_) {}
   }, [sidebarWidth]);
-
-  // Persist view mode
-  useEffect(() => {
-    try { localStorage.setItem('jsdoc-nav-view', viewMode); } catch (_) {}
-  }, [viewMode]);
-
-  // Compute nav groups based on view mode
-  const computedNav = useMemo(() => {
-    switch (viewMode) {
-      case 'type': return buildNavByType(nav);
-      case 'file': return buildNavByFile(nav);
-      default: return buildNavDefault(nav);
-    }
-  }, [nav, viewMode]);
 
   // Sidebar resize handling
   const handleResizeStart = useCallback((e) => {
@@ -197,7 +85,7 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
     document.addEventListener('mouseup', onMouseUp);
   }, [sidebarWidth]);
 
-  // ⌘K shortcut
+  // Cmd+K shortcut
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -209,45 +97,11 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  // Build search index from all pages
-  const searchIndex = useMemo(() => {
-    const index = [];
-    for (const page of pages) {
-      if (page.kind === 'home') continue;
-      index.push({
-        name: page.title,
-        slug: page.slug,
-        kind: page.kind,
-        description: page.doclet?.description || page.doclet?.classdesc || '',
-      });
-      if (page.members) {
-        for (const [category, items] of Object.entries(page.members)) {
-          for (const item of items) {
-            index.push({
-              name: `${page.title}.${item.name}`,
-              slug: page.slug,
-              anchor: item.name,
-              kind: item.kind,
-              description: item.description || '',
-              parent: page.title,
-            });
-          }
-        }
-      }
-    }
-    return index;
-  }, [pages]);
-
+  // Search using DocContent.search()
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase();
-    return searchIndex
-      .filter(item =>
-        item.name.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q)
-      )
-      .slice(0, 15);
-  }, [searchQuery, searchIndex]);
+    return docs.search(searchQuery).slice(0, 15);
+  }, [searchQuery, docs]);
 
   const handleSearchKeyDown = useCallback((e) => {
     if (e.key === 'ArrowDown') {
@@ -258,7 +112,7 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
       setActiveIndex(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter' && searchResults[activeIndex]) {
       const result = searchResults[activeIndex];
-      onNavigate(result.slug);
+      onNavigate(result.pageSlug);
       setSearchOpen(false);
       setSearchQuery('');
       if (result.anchor) {
@@ -273,6 +127,28 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
     onNavigate(slug);
     setMobileOpen(false);
   }, [onNavigate]);
+
+  // Scroll sidebar to a section
+  const scrollToSection = useCallback((title) => {
+    const el = document.getElementById('nav-section-' + title.replace(/\s+/g, '-'));
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  // Auto-scroll sidebar to the active nav item when slug changes
+  useEffect(() => {
+    if (!currentSlug || currentSlug === 'home') return;
+    const el = document.getElementById('nav-item-' + currentSlug);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [currentSlug]);
+
+  // Section jump titles
+  const sectionTitles = useMemo(() => {
+    return docs.nav.map(g => g.title);
+  }, [docs.nav]);
 
   return (
     <Flex className={`app-layout ${isResizing ? 'app-layout--resizing' : ''}`}>
@@ -303,10 +179,10 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
               </Box>
               <Flex direction="column" gap="0">
                 <Text size="2" weight="bold" className="sidebar-title">
-                  {packageInfo?.name || 'API Docs'}
+                  {docs.packageInfo?.name || 'API Docs'}
                 </Text>
-                {packageInfo?.version && (
-                  <Text size="1" color="gray">{packageInfo.version}</Text>
+                {docs.packageInfo?.version && (
+                  <Text size="1" color="gray">{docs.packageInfo.version}</Text>
                 )}
               </Flex>
             </Flex>
@@ -334,30 +210,27 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
             </button>
           </Box>
 
-          <Separator size="4" />
-
-          {/* View mode selector */}
-          <Flex className="view-mode-bar" px="3" py="2" gap="1">
-            {VIEW_MODES.map((mode) => {
-              const Icon = mode.icon;
-              return (
-                <button
-                  key={mode.id}
-                  className={`view-mode-btn ${viewMode === mode.id ? 'view-mode-btn--active' : ''}`}
-                  onClick={() => setViewMode(mode.id)}
-                  title={mode.label}
-                >
-                  <Icon width="14" height="14" />
-                  <span>{mode.label}</span>
-                </button>
-              );
-            })}
-          </Flex>
+          {/* Section jump links */}
+          {sectionTitles.length > 0 && (
+            <Box px="3" pb="2">
+              <Flex wrap="wrap" gap="1">
+                {sectionTitles.map((title) => (
+                  <button
+                    key={title}
+                    className="section-jump"
+                    onClick={() => scrollToSection(title)}
+                  >
+                    {title.toUpperCase()}
+                  </button>
+                ))}
+              </Flex>
+            </Box>
+          )}
 
           <Separator size="4" />
 
           {/* Navigation */}
-          <ScrollArea className="sidebar-scroll">
+          <ScrollArea className="sidebar-scroll" ref={sidebarScrollRef}>
             <Box p="3">
               <a
                 href="#home"
@@ -368,20 +241,25 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
                 <Text size="2">Overview</Text>
               </a>
 
-              {computedNav.map((group) => (
-                <Box key={group.title} mt="4">
-                  <Text size="1" weight="medium" color="gray" className="nav-group-title">
+              {docs.nav.map((group) => (
+                <Box key={group.title} mt="4" id={'nav-section-' + group.title.replace(/\s+/g, '-')}>
+                  <div className="nav-group-title">
                     {group.title}
-                  </Text>
-                  <Flex direction="column" gap="1" mt="2">
-                    {group.items.map((item) => {
-                      const Icon = KIND_ICONS[item.kind] || FileTextIcon;
+                    <span className="nav-group-count">{group.items.length}</span>
+                  </div>
+                  <Flex direction="column" gap="0" mt="1">
+                    {[...group.items].sort((a, b) => a.name.localeCompare(b.name)).map((item) => {
+                      const isActive = currentSlug === item.slug;
                       return (
                         <a
                           key={item.slug}
+                          id={`nav-item-${item.slug}`}
                           href={`#${item.slug}`}
-                          className={`nav-link ${currentSlug === item.slug ? 'nav-link--active' : ''}`}
-                          onClick={(e) => { e.preventDefault(); handleNavClick(item.slug); }}
+                          className={`nav-link ${isActive ? 'nav-link--active' : ''}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleNavClick(item.slug);
+                          }}
                         >
                           <Text size="2">{item.name}</Text>
                         </a>
@@ -441,12 +319,12 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
             ) : (
               searchResults.map((result, i) => (
                 <a
-                  key={`${result.slug}-${result.name}`}
-                  href={`#${result.slug}`}
+                  key={`${result.pageSlug}-${result.entry.name}-${i}`}
+                  href={`#${result.pageSlug}`}
                   className={`search-result ${i === activeIndex ? 'search-result--active' : ''}`}
                   onClick={(e) => {
                     e.preventDefault();
-                    onNavigate(result.slug);
+                    onNavigate(result.pageSlug);
                     setSearchOpen(false);
                     setSearchQuery('');
                     if (result.anchor) {
@@ -460,19 +338,19 @@ export function Layout({ nav, currentSlug, onNavigate, packageInfo, pages, child
                   <Flex align="center" gap="2">
                     <Badge
                       variant="surface"
-                      color={result.kind === 'class' ? 'red' : result.kind === 'function' ? 'green' : 'gray'}
+                      color={KIND_COLORS[result.entry.kind] || 'gray'}
                       size="1"
                     >
-                      {result.kind}
+                      {result.entry.kind}
                     </Badge>
-                    <Text size="2" weight="medium">{result.name}</Text>
+                    <Text size="2" weight="medium">{result.entry.name}</Text>
                   </Flex>
-                  {result.description && (
+                  {result.entry.description && (
                     <Text
                       size="1"
                       color="gray"
                       className="search-result-desc"
-                      dangerouslySetInnerHTML={{ __html: result.description.slice(0, 100) }}
+                      dangerouslySetInnerHTML={{ __html: result.entry.description.slice(0, 100) }}
                     />
                   )}
                 </a>

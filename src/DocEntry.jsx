@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { Box, Flex, Text, Badge, Card, Table, Code, Separator } from '@radix-ui/themes';
+import { Box, Flex, Text, Badge, Card, Table, Code } from '@radix-ui/themes';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -30,10 +29,36 @@ function highlightCode(code, lang) {
   }
 }
 
-function Signature({ doclet, isConstructor }) {
-  if (doclet.kind !== 'function' && !isConstructor) return null;
+/**
+ * Extract params/returns/exceptions from either the new signature
+ * format or the legacy flat format.
+ */
+function getSignatureData(doclet) {
+  if (doclet.signature) {
+    return {
+      params: doclet.signature.params || [],
+      returns: doclet.signature.returns || [],
+      exceptions: doclet.signature.exceptions || [],
+      async: doclet.signature.async || false,
+      generator: doclet.signature.generator || false,
+    };
+  }
+  // Legacy flat format fallback
+  return {
+    params: doclet.params || [],
+    returns: doclet.returns || [],
+    exceptions: doclet.exceptions || [],
+    async: doclet.async || false,
+    generator: doclet.generator || false,
+  };
+}
 
-  const params = (doclet.params || [])
+function Signature({ doclet, isConstructor }) {
+  const sig = getSignatureData(doclet);
+  const isCallable = doclet.kind === 'function' || isConstructor || doclet.signature;
+  if (!isCallable) return null;
+
+  const params = sig.params
     .filter(p => p.name && !p.name.includes('.'))
     .map(p => {
       let str = '';
@@ -45,8 +70,8 @@ function Signature({ doclet, isConstructor }) {
     });
 
   const name = isConstructor ? `new ${doclet.name}` : doclet.name;
-  const ret = doclet.returns?.[0]?.type
-    ? ` → ${doclet.returns[0].type.join(' | ')}`
+  const ret = sig.returns?.[0]?.type
+    ? ` \u2192 ${sig.returns[0].type.join(' | ')}`
     : '';
 
   return (
@@ -89,7 +114,7 @@ function ParamsTable({ params }) {
                 {p.type ? (
                   <Flex gap="1" wrap="wrap">
                     {p.type.map((t, j) => (
-                      <Badge key={j} variant="soft" color="red" size="1">{t}</Badge>
+                      <Badge key={j} variant="soft" color="iris" size="1">{t}</Badge>
                     ))}
                   </Flex>
                 ) : (
@@ -100,14 +125,14 @@ function ParamsTable({ params }) {
                 {p.defaultvalue ? (
                   <Code size="1" variant="ghost">{p.defaultvalue}</Code>
                 ) : (
-                  <Text size="1" color="gray">—</Text>
+                  <Text size="1" color="gray">&mdash;</Text>
                 )}
               </Table.Cell>
               <Table.Cell>
                 {p.description ? (
                   <Text size="1" dangerouslySetInnerHTML={{ __html: p.description }} />
                 ) : (
-                  <Text size="1" color="gray">—</Text>
+                  <Text size="1" color="gray">&mdash;</Text>
                 )}
               </Table.Cell>
             </Table.Row>
@@ -142,7 +167,7 @@ function PropertiesTable({ properties }) {
                 {p.type ? (
                   <Flex gap="1" wrap="wrap">
                     {p.type.map((t, j) => (
-                      <Badge key={j} variant="soft" color="red" size="1">{t}</Badge>
+                      <Badge key={j} variant="soft" color="iris" size="1">{t}</Badge>
                     ))}
                   </Flex>
                 ) : (
@@ -153,7 +178,7 @@ function PropertiesTable({ properties }) {
                 {p.description ? (
                   <Text size="1" dangerouslySetInnerHTML={{ __html: p.description }} />
                 ) : (
-                  <Text size="1" color="gray">—</Text>
+                  <Text size="1" color="gray">&mdash;</Text>
                 )}
               </Table.Cell>
             </Table.Row>
@@ -241,6 +266,7 @@ function Examples({ examples }) {
 }
 
 function MetaBadges({ doclet }) {
+  const sig = doclet.signature || {};
   const badges = [];
   if (doclet.access && doclet.access !== 'public') {
     badges.push(<Badge key="access" variant="surface" color={doclet.access === 'private' ? 'red' : 'orange'} size="1">{doclet.access}</Badge>);
@@ -248,10 +274,10 @@ function MetaBadges({ doclet }) {
   if (doclet.scope === 'static') {
     badges.push(<Badge key="static" variant="surface" color="blue" size="1">static</Badge>);
   }
-  if (doclet.async) {
+  if (sig.async || doclet.async) {
     badges.push(<Badge key="async" variant="surface" color="cyan" size="1">async</Badge>);
   }
-  if (doclet.generator) {
+  if (sig.generator || doclet.generator) {
     badges.push(<Badge key="gen" variant="surface" color="plum" size="1">generator</Badge>);
   }
   if (doclet.readonly) {
@@ -282,9 +308,13 @@ function SeeAlso({ see }) {
 }
 
 export function DocEntry({ doclet, isConstructor = false }) {
-  const isFn = doclet.kind === 'function' || isConstructor;
+  const sig = getSignatureData(doclet);
+  const isCallable = doclet.kind === 'function' || isConstructor || (doclet.signature != null);
   const isTypedef = doclet.kind === 'typedef';
   const isEvent = doclet.kind === 'event';
+
+  // Use source from either format
+  const source = doclet.source || doclet.meta;
 
   return (
     <Card id={doclet.name} className="doc-entry" variant="surface">
@@ -295,18 +325,18 @@ export function DocEntry({ doclet, isConstructor = false }) {
             <Text size="3" weight="bold" className="entry-name">
               {doclet.name}
             </Text>
-            {!isFn && doclet.type && (
+            {!isCallable && doclet.type && (
               <Flex gap="1">
                 {doclet.type.map((t, i) => (
-                  <Badge key={i} variant="soft" color="red" size="1">{t}</Badge>
+                  <Badge key={i} variant="soft" color="iris" size="1">{t}</Badge>
                 ))}
               </Flex>
             )}
           </Flex>
         </Flex>
-        {doclet.meta && (
+        {source && (
           <Text size="1" color="gray" className="source-ref">
-            {doclet.meta.filename}{doclet.meta.lineno ? `:${doclet.meta.lineno}` : ''}
+            {source.file || source.filename}{(source.line || source.lineno) ? `:${source.line || source.lineno}` : ''}
           </Text>
         )}
       </Flex>
@@ -314,12 +344,12 @@ export function DocEntry({ doclet, isConstructor = false }) {
       {doclet.deprecated && (
         <Box className="deprecated-notice" mb="2">
           <Text size="2" color="red">
-            ⚠ Deprecated{typeof doclet.deprecated === 'string' ? `: ${doclet.deprecated}` : ''}
+            Deprecated{typeof doclet.deprecated === 'string' ? `: ${doclet.deprecated}` : ''}
           </Text>
         </Box>
       )}
 
-      {(isFn || isConstructor) && <Signature doclet={doclet} isConstructor={isConstructor} />}
+      {isCallable && <Signature doclet={doclet} isConstructor={isConstructor} />}
 
       {doclet.description && (
         <Box className="entry-description" mt="2">
@@ -327,17 +357,17 @@ export function DocEntry({ doclet, isConstructor = false }) {
         </Box>
       )}
 
-      {isFn && <ParamsTable params={doclet.params} />}
+      {isCallable && <ParamsTable params={sig.params} />}
       {isTypedef && <PropertiesTable properties={doclet.properties} />}
-      {isTypedef && <ParamsTable params={doclet.params} />}
-      {isEvent && <ParamsTable params={doclet.params} />}
-      {!isFn && !isTypedef && <PropertiesTable properties={doclet.properties} />}
-      {isFn && <Returns returns={doclet.returns} />}
-      {isFn && <Throws exceptions={doclet.exceptions} />}
+      {isTypedef && <ParamsTable params={sig.params} />}
+      {isEvent && <ParamsTable params={sig.params} />}
+      {!isCallable && !isTypedef && <PropertiesTable properties={doclet.properties} />}
+      {isCallable && <Returns returns={sig.returns} />}
+      {isCallable && <Throws exceptions={sig.exceptions} />}
       <Examples examples={doclet.examples} />
       <SeeAlso see={doclet.see} />
 
-      {doclet.defaultvalue && !isFn && (
+      {doclet.defaultvalue && !isCallable && (
         <Flex mt="2" gap="2" align="center">
           <Text size="1" weight="medium" color="gray">Default:</Text>
           <Code size="1">{doclet.defaultvalue}</Code>

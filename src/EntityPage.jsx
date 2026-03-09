@@ -1,208 +1,282 @@
-import { Box, Flex, Heading, Text, Badge, Separator, Card, Tabs } from '@radix-ui/themes';
-import { CubeIcon } from '@radix-ui/react-icons';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Box, Flex, Heading, Text, Badge, Separator } from '@radix-ui/themes';
+import { ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import { DocEntry } from './DocEntry';
 
 const KIND_COLORS = {
   class: 'red',
-  module: 'cyan',
   interface: 'orange',
-  namespace: 'green',
   mixin: 'plum',
-  global: 'gray',
+  namespace: 'green',
+  function: 'green',
+  object: 'cyan',
+  constant: 'blue',
+  property: 'blue',
+  typedef: 'orange',
+  event: 'plum',
 };
 
-function Section({ title, items }) {
+// ── Section component with anchored ID ───────────────────
+
+function Section({ id, title, items }) {
   if (!items || items.length === 0) return null;
   return (
-    <Box className="doc-section" mt="6">
+    <Box className="doc-section" mt="6" id={id}>
       <Heading size="4" mb="4" className="section-title">
         {title}
       </Heading>
       <Flex direction="column" gap="3">
         {items.map((item, i) => (
-          <DocEntry key={item.name + '-' + i} doclet={item} />
+          <DocEntry key={item.longname || (item.name + '-' + i)} doclet={item} />
         ))}
       </Flex>
     </Box>
   );
 }
 
-function ClassLinks({ classes }) {
-  if (!classes || classes.length === 0) return null;
-  return (
-    <Box className="doc-section" mt="6">
-      <Heading size="4" mb="4" className="section-title">Classes</Heading>
-      <Flex direction="column" gap="2">
-        {classes.map((cls) => {
-          const slug = cls.longname
-            .replace(/^module:/, 'module-')
-            .replace(/[~#.]/g, '-')
-            .replace(/[^a-zA-Z0-9_-]/g, '_');
-          return (
-            <a key={cls.name} href={`#${slug}`} className="class-link-card">
-              <Card variant="surface">
-                <Flex align="center" gap="2">
-                  <CubeIcon />
-                  <Text size="2" weight="medium">{cls.name}</Text>
-                  {cls.description && (
-                    <Text size="1" color="gray" className="class-link-desc">
-                      — <span dangerouslySetInnerHTML={{ __html: cls.description.slice(0, 80) }} />
-                    </Text>
-                  )}
-                </Flex>
-              </Card>
-            </a>
-          );
-        })}
-      </Flex>
-    </Box>
-  );
-}
+// ── Page TOC (right-hand navigation) ─────────────────────
 
-export function EntityPage({ page }) {
-  const d = page.doclet;
-  const m = page.members;
-  const kindColor = KIND_COLORS[page.kind] || 'gray';
+function PageToc({ sections, activeMember, siblings, currentSlug, onNavigate }) {
+  const [collapsed, setCollapsed] = useState({});
 
-  if (page.kind === 'global') {
-    return (
-      <Box>
-        <Flex align="center" gap="3" mb="2">
-          <Badge variant="solid" color="gray" size="2">Global</Badge>
-          <Heading size="7">Global</Heading>
-        </Flex>
-        <Separator size="4" my="4" />
+  const toggleSection = useCallback((id) => {
+    setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
+  }, []);
 
-        <ClassLinks classes={m.classes} />
-        <Section title="Functions" items={m.methods} />
-        <Section title="Members" items={m.properties} />
-        <Section title="Type Definitions" items={m.typedefs} />
-        <Section title="Events" items={m.events} />
-      </Box>
-    );
-  }
+  const scrollTo = useCallback((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
-  const hasManyCategories = [
-    m.classes, m.methods, m.staticMethods, m.properties, m.staticProperties, m.events, m.typedefs
-  ].filter(arr => arr && arr.length > 0).length > 2;
+  if (sections.length === 0 && siblings.length === 0) return null;
 
   return (
-    <Box>
-      {/* Header */}
-      <Flex align="center" gap="3" mb="2">
-        <Badge variant="solid" color={kindColor} size="2">
-          {page.kind.charAt(0).toUpperCase() + page.kind.slice(1)}
-        </Badge>
-        <Heading size="7" className="entity-title">{page.title}</Heading>
-      </Flex>
-
-      {/* Source */}
-      {d.meta && (
-        <Text size="1" color="gray" className="source-ref">
-          {d.meta.filename}{d.meta.lineno ? `:${d.meta.lineno}` : ''}
-        </Text>
-      )}
-
-      {/* Extends / Implements */}
-      {d.augments && d.augments.length > 0 && (
-        <Flex gap="2" mt="2" align="center">
-          <Text size="2" color="gray">extends</Text>
-          {d.augments.map(a => (
-            <Badge key={a} variant="outline" color="gray">{a}</Badge>
-          ))}
-        </Flex>
-      )}
-      {d.implements && d.implements.length > 0 && (
-        <Flex gap="2" mt="2" align="center">
-          <Text size="2" color="gray">implements</Text>
-          {d.implements.map(i => (
-            <Badge key={i} variant="outline" color="gray">{i}</Badge>
-          ))}
-        </Flex>
-      )}
-
-      {/* Deprecated notice */}
-      {d.deprecated && (
-        <Box className="deprecated-notice" mt="3">
-          <Text size="2" weight="medium" color="red">
-            ⚠ Deprecated{typeof d.deprecated === 'string' ? `: ${d.deprecated}` : ''}
-          </Text>
-        </Box>
-      )}
-
-      {/* Description */}
-      {(d.classdesc || d.description) && (
-        <Box className="entity-description" mt="4">
-          <div dangerouslySetInnerHTML={{ __html: d.classdesc || d.description }} />
-        </Box>
-      )}
-
-      <Separator size="4" my="5" />
-
-      {/* Constructor (for classes) */}
-      {page.kind === 'class' && d.params && d.params.length > 0 && (
-        <Box className="doc-section" mt="2">
-          <Heading size="4" mb="4" className="section-title">
-            Constructor
-          </Heading>
-          <DocEntry doclet={d} isConstructor />
-        </Box>
-      )}
-
-      {/* Use tabs if many categories, otherwise flat sections */}
-      {hasManyCategories ? (
-        <Tabs.Root defaultValue={getDefaultTab(m)}>
-          <Tabs.List>
-            {m.properties?.length > 0 && <Tabs.Trigger value="properties">Properties</Tabs.Trigger>}
-            {m.staticProperties?.length > 0 && <Tabs.Trigger value="staticProperties">Static Properties</Tabs.Trigger>}
-            {m.methods?.length > 0 && <Tabs.Trigger value="methods">Methods</Tabs.Trigger>}
-            {m.staticMethods?.length > 0 && <Tabs.Trigger value="staticMethods">Static Methods</Tabs.Trigger>}
-            {m.events?.length > 0 && <Tabs.Trigger value="events">Events</Tabs.Trigger>}
-            {m.typedefs?.length > 0 && <Tabs.Trigger value="typedefs">Types</Tabs.Trigger>}
-          </Tabs.List>
-
-          <Box mt="4">
-            <TabContent value="properties" items={m.properties} />
-            <TabContent value="staticProperties" items={m.staticProperties} />
-            <TabContent value="methods" items={m.methods} />
-            <TabContent value="staticMethods" items={m.staticMethods} />
-            <TabContent value="events" items={m.events} />
-            <TabContent value="typedefs" items={m.typedefs} />
-          </Box>
-        </Tabs.Root>
-      ) : (
+    <Box className="page-toc">
+      {sections.length > 0 && (
         <>
-          <ClassLinks classes={m.classes} />
-          <Section title="Properties" items={m.properties} />
-          <Section title="Static Properties" items={m.staticProperties} />
-          <Section title="Methods" items={m.methods} />
-          <Section title="Static Methods" items={m.staticMethods} />
-          <Section title="Events" items={m.events} />
-          <Section title="Type Definitions" items={m.typedefs} />
+          <Text size="1" weight="bold" className="page-toc-title">
+            ON THIS PAGE
+          </Text>
+          <Flex direction="column" gap="0" mt="2">
+            {sections.map(({ id, title, items }) => (
+              <Box key={id}>
+                <button
+                  className="page-toc-section"
+                  onClick={() => toggleSection(id)}
+                >
+                  <Flex align="center" gap="1">
+                    {collapsed[id]
+                      ? <ChevronRightIcon width="12" height="12" />
+                      : <ChevronDownIcon width="12" height="12" />
+                    }
+                    <span className="page-toc-section-text">{title}</span>
+                  </Flex>
+                  <span className="page-toc-count">{items.length}</span>
+                </button>
+                {!collapsed[id] && (
+                  <Flex direction="column" gap="0" className="page-toc-items">
+                    {items.map((item) => (
+                      <button
+                        key={item.name}
+                        className={`page-toc-item ${activeMember === item.name ? 'page-toc-item--active' : ''}`}
+                        onClick={() => scrollTo(item.name)}
+                      >
+                        {item.name}
+                      </button>
+                    ))}
+                  </Flex>
+                )}
+              </Box>
+            ))}
+          </Flex>
+        </>
+      )}
+
+      {siblings.length > 0 && (
+        <>
+          <Text size="1" weight="bold" className="page-toc-title" mt={sections.length > 0 ? '4' : '0'}>
+            ALSO IN THIS FILE
+          </Text>
+          <Flex direction="column" gap="0" mt="2" className="page-toc-items">
+            {siblings.map((sib) => (
+              <a
+                key={sib.slug}
+                href={`#${sib.slug}`}
+                className={`page-toc-sibling ${sib.slug === currentSlug ? 'page-toc-sibling--current' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onNavigate) onNavigate(sib.slug);
+                }}
+              >
+                <Badge
+                  variant="surface"
+                  color={KIND_COLORS[sib.kind] || 'gray'}
+                  size="1"
+                  style={{ flexShrink: 0 }}
+                >
+                  {sib.kind === 'function' ? 'fn' : sib.kind === 'constant' ? 'const' : sib.kind.slice(0, 3)}
+                </Badge>
+                <span className="page-toc-sibling-name">{sib.name}</span>
+              </a>
+            ))}
+          </Flex>
         </>
       )}
     </Box>
   );
 }
 
-function TabContent({ value, items }) {
-  if (!items || items.length === 0) return null;
-  return (
-    <Tabs.Content value={value}>
-      <Flex direction="column" gap="3">
-        {items.map((item, i) => (
-          <DocEntry key={item.name + '-' + i} doclet={item} />
-        ))}
-      </Flex>
-    </Tabs.Content>
-  );
-}
+// ── Main EntityPage ──────────────────────────────────────
 
-function getDefaultTab(members) {
-  if (members.methods?.length) return 'methods';
-  if (members.properties?.length) return 'properties';
-  if (members.staticMethods?.length) return 'staticMethods';
-  if (members.staticProperties?.length) return 'staticProperties';
-  if (members.events?.length) return 'events';
-  return 'typedefs';
+export function EntityPage({ entry, docs, onNavigate }) {
+  const m = entry.members || {};
+  const kindColor = KIND_COLORS[entry.kind] || 'gray';
+  const kindLabel = entry.kind.charAt(0).toUpperCase() + entry.kind.slice(1);
+  const [activeMember, setActiveMember] = useState(null);
+  const contentRef = useRef(null);
+
+  // Build sections array for both rendering and TOC
+  const sections = useMemo(() => {
+    const result = [];
+    const add = (id, title, items) => {
+      if (items && items.length > 0) result.push({ id, title, items });
+    };
+    add('section-properties', 'Properties', m.properties);
+    add('section-static-properties', 'Static Properties', m.staticProperties);
+    add('section-methods', 'Methods', m.methods);
+    add('section-static-methods', 'Static Methods', m.staticMethods);
+    add('section-events', 'Events', m.events);
+    add('section-typedefs', 'Type Definitions', m.typedefs);
+    add('section-classes', 'Classes', m.classes);
+    return result;
+  }, [m]);
+
+  // Find sibling pages from the same source file
+  const siblings = useMemo(() => {
+    if (!docs || !entry.source || !entry.source.file) return [];
+    const file = entry.source.file;
+    const result = [];
+    const slugs = Object.keys(docs.pages);
+    for (let i = 0; i < slugs.length; i++) {
+      const page = docs.pages[slugs[i]];
+      if (page.kind === 'home') continue;
+      if (page.source && page.source.file === file) {
+        result.push({ name: page.name, slug: page.slug, kind: page.kind });
+      }
+    }
+    result.sort((a, b) => a.name.localeCompare(b.name));
+    return result;
+  }, [docs, entry]);
+
+  // Intersection observer to track which member is visible
+  useEffect(() => {
+    const allItems = sections.flatMap(s => s.items);
+    if (allItems.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            setActiveMember(e.target.id);
+            break;
+          }
+        }
+      },
+      { rootMargin: '-80px 0px -60% 0px', threshold: 0 }
+    );
+
+    // Observe all doc-entry cards by their ID
+    for (const item of allItems) {
+      const el = document.getElementById(item.name);
+      if (el) observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [sections]);
+
+  return (
+    <Flex className="entity-page-layout">
+      {/* Main content */}
+      <Box className="entity-page-content" ref={contentRef}>
+        {/* Header */}
+        <Flex align="center" gap="3" mb="2">
+          <Badge variant="solid" color={kindColor} size="2">
+            {kindLabel}
+          </Badge>
+          <Heading size="7" className="entity-title">{entry.name}</Heading>
+        </Flex>
+
+        {/* Source */}
+        {entry.source && (
+          <Text size="1" color="gray" className="source-ref">
+            {entry.source.file}{entry.source.line ? `:${entry.source.line}` : ''}
+          </Text>
+        )}
+
+        {/* Extends / Implements */}
+        {entry.augments && entry.augments.length > 0 && (
+          <Flex gap="2" mt="2" align="center">
+            <Text size="2" color="gray">extends</Text>
+            {entry.augments.map(a => (
+              <Badge key={a} variant="outline" color="gray">{a}</Badge>
+            ))}
+          </Flex>
+        )}
+        {entry.implements && entry.implements.length > 0 && (
+          <Flex gap="2" mt="2" align="center">
+            <Text size="2" color="gray">implements</Text>
+            {entry.implements.map(i => (
+              <Badge key={i} variant="outline" color="gray">{i}</Badge>
+            ))}
+          </Flex>
+        )}
+
+        {/* Deprecated notice */}
+        {entry.deprecated && (
+          <Box className="deprecated-notice" mt="3">
+            <Text size="2" weight="medium" color="red">
+              Deprecated{typeof entry.deprecated === 'string' ? `: ${entry.deprecated}` : ''}
+            </Text>
+          </Box>
+        )}
+
+        {/* Description */}
+        {entry.description && (
+          <Box className="entity-description" mt="4">
+            <div dangerouslySetInnerHTML={{ __html: entry.description }} />
+          </Box>
+        )}
+
+        <Separator size="4" my="5" />
+
+        {/* Signature (for callable items) */}
+        {entry.signature && (
+          <Box className="doc-section" mt="2">
+            {entry.kind === 'class' && entry.signature.params?.length > 0 ? (
+              <Heading size="4" mb="4" className="section-title">Constructor</Heading>
+            ) : null}
+            <DocEntry doclet={entry} isConstructor={entry.kind === 'class'} />
+          </Box>
+        )}
+
+        {/* Member sections (always flat, with anchored IDs) */}
+        {sections.map(({ id, title, items }) => (
+          <Section key={id} id={id} title={title} items={items} />
+        ))}
+      </Box>
+
+      {/* Right-hand page TOC */}
+      {(sections.length > 0 || siblings.length > 1) && (
+        <PageToc
+          sections={sections}
+          activeMember={activeMember}
+          siblings={siblings.length > 1 ? siblings : []}
+          currentSlug={entry.slug}
+          onNavigate={onNavigate}
+        />
+      )}
+    </Flex>
+  );
 }
