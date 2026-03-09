@@ -1,6 +1,6 @@
 {
   "name": "@nejs/jsdoc-react-theme",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "A modern JSDoc template built with React and Radix UI, inspired by AuthKit",
   "main": "publish.js",
   "bin": {
