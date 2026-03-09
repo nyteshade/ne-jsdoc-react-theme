@@ -99,6 +99,27 @@ exports.publish = function (taffyData, opts) {
   // Re-process after link resolution to get final data
   const processed = processDoclets(data, processOpts);
 
+  // Collect and highlight source files
+  const hljs = require('highlight.js');
+  const sources = {};
+  const sourcePathMap = {}; // shortpath → absolute path
+  data().each(function (doclet) {
+    if (doclet.meta && doclet.meta.path && doclet.meta.filename) {
+      var shortpath = doclet.meta.shortpath || doclet.meta.filename;
+      if (!sourcePathMap[shortpath]) {
+        sourcePathMap[shortpath] = path.join(doclet.meta.path, doclet.meta.filename);
+      }
+    }
+  });
+  for (var shortpath in sourcePathMap) {
+    if (!Object.prototype.hasOwnProperty.call(sourcePathMap, shortpath)) continue;
+    try {
+      var src = fs.readFileSync(sourcePathMap[shortpath], 'utf8');
+      var highlighted = hljs.highlightAuto(src).value;
+      sources[shortpath] = highlighted;
+    } catch (_) {}
+  }
+
   // Read theme version from package.json
   let themeVersion = null;
   try {
@@ -115,6 +136,7 @@ exports.publish = function (taffyData, opts) {
     nav: processed.nav,
     pages: processed.pages,
     readme: readme,
+    sources: sources,
   };
 
   // Read doc-model.js source for inlining into content.js

@@ -50,7 +50,9 @@ function processDoclets(data, opts) {
     try {
       astExports = analyzeExports(sourceRoot);
     } catch (err) {
-      console.warn('[jsdoc-react-theme] AST pass failed, falling back to JSDoc only:', err.message);
+      if (process.env.JSDOC_DEBUG) {
+        console.warn('[jsdoc-react-theme] AST pass failed, falling back to JSDoc only:', err.message);
+      }
     }
   }
 
@@ -86,6 +88,20 @@ function processDoclets(data, opts) {
       .filter(function (c) { return c.longname !== doclet.longname; })
       .filter(function (c) { return !(c.kind === 'class' && c.scope === 'instance'); })
       .filter(function (c) { return c.name !== 'constructor' || c.kind !== 'function'; });
+
+    // Deduplicate children by name. Multiple doclets with the same name but
+    // different longnames can accumulate (e.g., collectDescendants finds
+    // 'Parent.descriptor' and Phase 1 claiming adds standalone 'descriptor').
+    // Prefer the entry with a description.
+    var childByName = new Map();
+    for (var ci = 0; ci < children.length; ci++) {
+      var child = children[ci];
+      var existing = childByName.get(child.name);
+      if (!existing || (child.description && !existing.description)) {
+        childByName.set(child.name, child);
+      }
+    }
+    children = Array.from(childByName.values());
 
     var kind = kindOverride || inferKind(doclet, children);
     var slug = sanitize(doclet.longname);
@@ -217,6 +233,25 @@ function processDoclets(data, opts) {
     var merged = jsdocChildren.slice();
     var existingNames = new Set(merged.map(function (c) { return c.name; }));
 
+    // Find the shortpath for the parent's file from any real doclet in that file.
+    // JSDoc's shortpath may differ from the AST's relative path, and the sources
+    // map is keyed by shortpath. Without this, synthetic children can't open the
+    // source viewer because their file path won't match the sources map key.
+    var parentShortpath = null;
+    if (astInfo.file) {
+      var astBase = astInfo.file.split('/').pop();
+      for (var s = 0; s < allDoclets.length; s++) {
+        var dm = allDoclets[s].meta;
+        if (dm && dm.shortpath) {
+          var dBase = (dm.filename || dm.shortpath || '').split('/').pop();
+          if (dBase === astBase) {
+            parentShortpath = dm.shortpath;
+            break;
+          }
+        }
+      }
+    }
+
     for (var i = 0; i < astInfo.children.length; i++) {
       var astChild = astInfo.children[i];
       if (existingNames.has(astChild.name)) continue;
@@ -241,14 +276,23 @@ function processDoclets(data, opts) {
         claimedAsChild.add(realDoclet.longname);
         merged.push(realDoclet);
       } else {
-        // Create a synthetic doclet for AST-discovered children
+        // Create a synthetic doclet for AST-discovered children.
+        // Use parentShortpath if available so the source viewer can find the file.
+        var syntheticMeta = null;
+        if (astInfo.file) {
+          syntheticMeta = {
+            shortpath: parentShortpath || astInfo.file,
+            filename: astInfo.file,
+            lineno: astChild.line,
+          };
+        }
         merged.push({
           name: astChild.name,
           longname: parentLongname + '.' + astChild.name,
           kind: astChild.kind === 'function' ? 'function' : 'member',
           scope: astChild.static ? 'static' : 'instance',
           description: '',
-          meta: astInfo.file ? { filename: astInfo.file, lineno: astChild.line } : null,
+          meta: syntheticMeta,
         });
       }
     }
@@ -389,8 +433,10 @@ function processDoclets(data, opts) {
           // Match if memberof points to parent
           if (_poolItem.memberof === longname) {
             claimedAsChild.add(_poolItem.longname);
-            // Add the real JSDoc doclet to children so its description/params are preserved
-            if (!_children.some(function (c) { return c.longname === _poolItem.longname; })) {
+            // Add the real JSDoc doclet to children so its description/params are preserved.
+            // Check by name (not just longname) to avoid duplicates when collectDescendants
+            // already found a doclet with the same name but a different longname.
+            if (!_children.some(function (c) { return c.name === _poolItem.name; })) {
               _children.push(_poolItem);
             }
             continue;
@@ -403,8 +449,7 @@ function processDoclets(data, opts) {
             var itemBase = itemFile.split('/').pop();
             if (parentBase && itemBase && parentBase === itemBase) {
               claimedAsChild.add(_poolItem.longname);
-              // Add the real JSDoc doclet to children so its description/params are preserved
-              if (!_children.some(function (c) { return c.longname === _poolItem.longname; })) {
+              if (!_children.some(function (c) { return c.name === _poolItem.name; })) {
                 _children.push(_poolItem);
               }
             }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Box, Flex, Heading, Text, Badge, Separator } from '@radix-ui/themes';
 import { ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import { DocEntry } from './DocEntry';
+import { SourceView, SourceRef } from './SourceView';
 
 const KIND_COLORS = {
   class: 'red',
@@ -18,7 +19,7 @@ const KIND_COLORS = {
 
 // ── Section component with anchored ID ───────────────────
 
-function Section({ id, title, items }) {
+function Section({ id, title, items, onViewSource }) {
   if (!items || items.length === 0) return null;
   return (
     <Box className="doc-section" mt="6" id={id}>
@@ -27,7 +28,9 @@ function Section({ id, title, items }) {
       </Heading>
       <Flex direction="column" gap="3">
         {items.map((item, i) => (
-          <DocEntry key={item.longname || (item.name + '-' + i)} doclet={item} />
+          <div key={item.longname || (item.name + '-' + i)} id={item.name}>
+            <DocEntry doclet={item} onViewSource={onViewSource} />
+          </div>
         ))}
       </Flex>
     </Box>
@@ -137,6 +140,20 @@ export function EntityPage({ entry, docs, onNavigate }) {
   const [activeMember, setActiveMember] = useState(null);
   const contentRef = useRef(null);
 
+  // Source viewer state
+  const [sourceViewFile, setSourceViewFile] = useState(null);
+  const [sourceViewLine, setSourceViewLine] = useState(null);
+
+  const handleViewSource = useCallback((file, line) => {
+    setSourceViewFile(file);
+    setSourceViewLine(line || null);
+  }, []);
+
+  const handleCloseSource = useCallback(() => {
+    setSourceViewFile(null);
+    setSourceViewLine(null);
+  }, []);
+
   // Build sections array for both rendering and TOC
   const sections = useMemo(() => {
     const result = [];
@@ -210,9 +227,11 @@ export function EntityPage({ entry, docs, onNavigate }) {
 
         {/* Source */}
         {entry.source && (
-          <Text size="1" color="gray" className="source-ref">
-            {entry.source.file}{entry.source.line ? `:${entry.source.line}` : ''}
-          </Text>
+          <SourceRef
+            file={entry.source.file}
+            line={entry.source.line}
+            onClick={handleViewSource}
+          />
         )}
 
         {/* Extends / Implements */}
@@ -257,13 +276,13 @@ export function EntityPage({ entry, docs, onNavigate }) {
             {entry.kind === 'class' && entry.signature.params?.length > 0 ? (
               <Heading size="4" mb="4" className="section-title">Constructor</Heading>
             ) : null}
-            <DocEntry doclet={entry} isConstructor={entry.kind === 'class'} />
+            <DocEntry doclet={entry} isConstructor={entry.kind === 'class'} onViewSource={handleViewSource} />
           </Box>
         )}
 
         {/* Member sections (always flat, with anchored IDs) */}
         {sections.map(({ id, title, items }) => (
-          <Section key={id} id={id} title={title} items={items} />
+          <Section key={id} id={id} title={title} items={items} onViewSource={handleViewSource} />
         ))}
       </Box>
 
@@ -277,6 +296,15 @@ export function EntityPage({ entry, docs, onNavigate }) {
           onNavigate={onNavigate}
         />
       )}
+
+      {/* Source code viewer */}
+      <SourceView
+        open={!!sourceViewFile}
+        onClose={handleCloseSource}
+        file={sourceViewFile}
+        highlightedHtml={sourceViewFile && docs ? docs.source(sourceViewFile) : null}
+        targetLine={sourceViewLine}
+      />
     </Flex>
   );
 }

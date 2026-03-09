@@ -307,7 +307,7 @@ function SeeAlso({ see }) {
   );
 }
 
-export function DocEntry({ doclet, isConstructor = false }) {
+export function DocEntry({ doclet, isConstructor = false, onViewSource }) {
   const sig = getSignatureData(doclet);
   const isCallable = doclet.kind === 'function' || isConstructor || (doclet.signature != null);
   const isTypedef = doclet.kind === 'typedef';
@@ -315,9 +315,11 @@ export function DocEntry({ doclet, isConstructor = false }) {
 
   // Use source from either format
   const source = doclet.source || doclet.meta;
+  const sourceFile = source ? (source.file || source.filename) : null;
+  const sourceLine = source ? (source.line || source.lineno) : null;
 
   return (
-    <Card id={doclet.name} className="doc-entry" variant="surface">
+    <Card className="doc-entry" variant="surface" data-entry={doclet.name}>
       <Flex justify="between" align="start" mb="2">
         <Flex direction="column" gap="1">
           <Flex align="center" gap="2">
@@ -334,11 +336,19 @@ export function DocEntry({ doclet, isConstructor = false }) {
             )}
           </Flex>
         </Flex>
-        {source && (
+        {sourceFile && onViewSource ? (
+          <button
+            className="source-ref-link"
+            onClick={() => onViewSource(sourceFile, sourceLine)}
+            title="View source"
+          >
+            {sourceFile}{sourceLine ? `:${sourceLine}` : ''}
+          </button>
+        ) : sourceFile ? (
           <Text size="1" color="gray" className="source-ref">
-            {source.file || source.filename}{(source.line || source.lineno) ? `:${source.line || source.lineno}` : ''}
+            {sourceFile}{sourceLine ? `:${sourceLine}` : ''}
           </Text>
-        )}
+        ) : null}
       </Flex>
 
       {doclet.deprecated && (

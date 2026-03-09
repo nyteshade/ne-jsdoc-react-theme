@@ -8882,11 +8882,11 @@
   });
 
   // src/index.jsx
-  var import_react7 = __toESM(require_react());
+  var import_react8 = __toESM(require_react());
   var import_client = __toESM(require_client());
 
   // src/App.jsx
-  var import_react6 = __toESM(require_react());
+  var import_react7 = __toESM(require_react());
 
   // node_modules/@radix-ui/react-visually-hidden/dist/index.mjs
   var dist_exports2 = {};
@@ -15717,7 +15717,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }
 
   // src/EntityPage.jsx
-  var import_react5 = __toESM(require_react());
+  var import_react6 = __toESM(require_react());
 
   // node_modules/highlight.js/es/core.js
   var import_core2 = __toESM(require_core(), 1);
@@ -19012,23 +19012,36 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("ul", { className: "see-list", children: see.map((s11, i6) => /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(p, { size: "2", dangerouslySetInnerHTML: { __html: s11 } }) }, i6)) })
     ] });
   }
-  function DocEntry({ doclet, isConstructor = false }) {
+  function DocEntry({ doclet, isConstructor = false, onViewSource }) {
     const sig = getSignatureData(doclet);
     const isCallable = doclet.kind === "function" || isConstructor || doclet.signature != null;
     const isTypedef = doclet.kind === "typedef";
     const isEvent = doclet.kind === "event";
     const source = doclet.source || doclet.meta;
-    return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(o14, { id: doclet.name, className: "doc-entry", variant: "surface", children: [
+    const sourceFile = source ? source.file || source.filename : null;
+    const sourceLine = source ? source.line || source.lineno : null;
+    return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(o14, { className: "doc-entry", variant: "surface", "data-entry": doclet.name, children: [
       /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(p10, { justify: "between", align: "start", mb: "2", children: [
         /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(p10, { direction: "column", gap: "1", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(p10, { align: "center", gap: "2", children: [
           /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(MetaBadges, { doclet }),
           /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(p, { size: "3", weight: "bold", className: "entry-name", children: doclet.name }),
           !isCallable && doclet.type && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(p10, { gap: "1", children: doclet.type.map((t15, i6) => /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(e13, { variant: "soft", color: "iris", size: "1", children: t15 }, i6)) })
         ] }) }),
-        source && /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(p, { size: "1", color: "gray", className: "source-ref", children: [
-          source.file || source.filename,
-          source.line || source.lineno ? `:${source.line || source.lineno}` : ""
-        ] })
+        sourceFile && onViewSource ? /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
+          "button",
+          {
+            className: "source-ref-link",
+            onClick: () => onViewSource(sourceFile, sourceLine),
+            title: "View source",
+            children: [
+              sourceFile,
+              sourceLine ? `:${sourceLine}` : ""
+            ]
+          }
+        ) : sourceFile ? /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(p, { size: "1", color: "gray", className: "source-ref", children: [
+          sourceFile,
+          sourceLine ? `:${sourceLine}` : ""
+        ] }) : null
       ] }),
       doclet.deprecated && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(p7, { className: "deprecated-notice", mb: "2", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(p, { size: "2", color: "red", children: [
         "Deprecated",
@@ -19052,8 +19065,72 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     ] });
   }
 
-  // src/EntityPage.jsx
+  // src/SourceView.jsx
+  var import_react5 = __toESM(require_react());
   var import_jsx_runtime17 = __toESM(require_jsx_runtime());
+  function SourceView({ open, onClose, file, highlightedHtml, targetLine }) {
+    const scrollRef = (0, import_react5.useRef)(null);
+    const targetCallbackRef = (0, import_react5.useCallback)((node) => {
+      if (node) {
+        requestAnimationFrame(() => {
+          node.scrollIntoView({ block: "center" });
+        });
+      }
+    }, []);
+    if (!open) return null;
+    const lines = highlightedHtml ? highlightedHtml.split("\n") : null;
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(dialog_exports.Root, { open, onOpenChange: (v3) => {
+      if (!v3) onClose();
+    }, children: /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(dialog_exports.Content, { className: "source-dialog", size: "4", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { justify: "between", align: "center", className: "source-dialog-header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { align: "center", gap: "2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(e13, { variant: "surface", color: "gray", size: "1", children: "source" }),
+          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p, { size: "2", weight: "bold", className: "source-dialog-filename", children: file }),
+          targetLine && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p, { size: "1", color: "gray", children: [
+            "line ",
+            targetLine
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(o17, { variant: "ghost", color: "gray", size: "1", onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Cross1Icon, {}) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p7, { className: "source-dialog-body", ref: scrollRef, children: lines ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("table", { className: "source-table", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("tbody", { children: lines.map((lineHtml, i6) => {
+        const lineNum = i6 + 1;
+        const isTarget = lineNum === targetLine;
+        return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(
+          "tr",
+          {
+            ref: isTarget ? targetCallbackRef : void 0,
+            className: `source-line ${isTarget ? "source-line--target" : ""}`,
+            id: `source-L${lineNum}`,
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("td", { className: "source-line-num", children: lineNum }),
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+                "td",
+                {
+                  className: "source-line-code",
+                  dangerouslySetInnerHTML: { __html: lineHtml || "&nbsp;" }
+                }
+              )
+            ]
+          },
+          lineNum
+        );
+      }) }) }) : /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p10, { align: "center", justify: "center", py: "9", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p, { size: "2", color: "gray", children: "Source not available for this file." }) }) })
+    ] }) });
+  }
+  function SourceRef({ file, line, onClick }) {
+    if (!file) return null;
+    const label = line ? `${file}:${line}` : file;
+    const handleClick = (0, import_react5.useCallback)((e24) => {
+      e24.preventDefault();
+      e24.stopPropagation();
+      if (onClick) onClick(file, line);
+    }, [file, line, onClick]);
+    return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("button", { className: "source-ref-link", onClick: handleClick, title: "View source", children: label });
+  }
+
+  // src/EntityPage.jsx
+  var import_jsx_runtime18 = __toESM(require_jsx_runtime());
   var KIND_COLORS2 = {
     class: "red",
     interface: "orange",
@@ -19066,44 +19143,44 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     typedef: "orange",
     event: "plum"
   };
-  function Section({ id, title, items }) {
+  function Section({ id, title, items, onViewSource }) {
     if (!items || items.length === 0) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p7, { className: "doc-section", mt: "6", id, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(r8, { size: "4", mb: "4", className: "section-title", children: title }),
-      /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p10, { direction: "column", gap: "3", children: items.map((item, i6) => /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(DocEntry, { doclet: item }, item.longname || item.name + "-" + i6)) })
+    return /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p7, { className: "doc-section", mt: "6", id, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(r8, { size: "4", mb: "4", className: "section-title", children: title }),
+      /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p10, { direction: "column", gap: "3", children: items.map((item, i6) => /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("div", { id: item.name, children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(DocEntry, { doclet: item, onViewSource }) }, item.longname || item.name + "-" + i6)) })
     ] });
   }
   function PageToc({ sections, activeMember, siblings, currentSlug, onNavigate }) {
-    const [collapsed, setCollapsed] = (0, import_react5.useState)({});
-    const toggleSection = (0, import_react5.useCallback)((id) => {
+    const [collapsed, setCollapsed] = (0, import_react6.useState)({});
+    const toggleSection = (0, import_react6.useCallback)((id) => {
       setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
     }, []);
-    const scrollTo = (0, import_react5.useCallback)((id) => {
+    const scrollTo = (0, import_react6.useCallback)((id) => {
       const el = document.getElementById(id);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, []);
     if (sections.length === 0 && siblings.length === 0) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p7, { className: "page-toc", children: [
-      sections.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(import_jsx_runtime17.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p, { size: "1", weight: "bold", className: "page-toc-title", children: "ON THIS PAGE" }),
-        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p10, { direction: "column", gap: "0", mt: "2", children: sections.map(({ id, title, items }) => /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p7, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p7, { className: "page-toc", children: [
+      sections.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(import_jsx_runtime18.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p, { size: "1", weight: "bold", className: "page-toc-title", children: "ON THIS PAGE" }),
+        /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p10, { direction: "column", gap: "0", mt: "2", children: sections.map(({ id, title, items }) => /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p7, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(
             "button",
             {
               className: "page-toc-section",
               onClick: () => toggleSection(id),
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { align: "center", gap: "1", children: [
-                  collapsed[id] ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ChevronRightIcon, { width: "12", height: "12" }) : /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ChevronDownIcon, { width: "12", height: "12" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("span", { className: "page-toc-section-text", children: title })
+                /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p10, { align: "center", gap: "1", children: [
+                  collapsed[id] ? /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(ChevronRightIcon, { width: "12", height: "12" }) : /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(ChevronDownIcon, { width: "12", height: "12" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("span", { className: "page-toc-section-text", children: title })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("span", { className: "page-toc-count", children: items.length })
+                /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("span", { className: "page-toc-count", children: items.length })
               ]
             }
           ),
-          !collapsed[id] && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p10, { direction: "column", gap: "0", className: "page-toc-items", children: items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+          !collapsed[id] && /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p10, { direction: "column", gap: "0", className: "page-toc-items", children: items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
             "button",
             {
               className: `page-toc-item ${activeMember === item.name ? "page-toc-item--active" : ""}`,
@@ -19114,9 +19191,9 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           )) })
         ] }, id)) })
       ] }),
-      siblings.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(import_jsx_runtime17.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p, { size: "1", weight: "bold", className: "page-toc-title", mt: sections.length > 0 ? "4" : "0", children: "ALSO IN THIS FILE" }),
-        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p10, { direction: "column", gap: "0", mt: "2", className: "page-toc-items", children: siblings.map((sib) => /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(
+      siblings.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(import_jsx_runtime18.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p, { size: "1", weight: "bold", className: "page-toc-title", mt: sections.length > 0 ? "4" : "0", children: "ALSO IN THIS FILE" }),
+        /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p10, { direction: "column", gap: "0", mt: "2", className: "page-toc-items", children: siblings.map((sib) => /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(
           "a",
           {
             href: `#${sib.slug}`,
@@ -19126,7 +19203,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
               if (onNavigate) onNavigate(sib.slug);
             },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
                 e13,
                 {
                   variant: "surface",
@@ -19136,7 +19213,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
                   children: sib.kind === "function" ? "fn" : sib.kind === "constant" ? "const" : sib.kind.slice(0, 3)
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("span", { className: "page-toc-sibling-name", children: sib.name })
+              /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("span", { className: "page-toc-sibling-name", children: sib.name })
             ]
           },
           sib.slug
@@ -19148,9 +19225,19 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     const m6 = entry.members || {};
     const kindColor = KIND_COLORS2[entry.kind] || "gray";
     const kindLabel = entry.kind.charAt(0).toUpperCase() + entry.kind.slice(1);
-    const [activeMember, setActiveMember] = (0, import_react5.useState)(null);
-    const contentRef = (0, import_react5.useRef)(null);
-    const sections = (0, import_react5.useMemo)(() => {
+    const [activeMember, setActiveMember] = (0, import_react6.useState)(null);
+    const contentRef = (0, import_react6.useRef)(null);
+    const [sourceViewFile, setSourceViewFile] = (0, import_react6.useState)(null);
+    const [sourceViewLine, setSourceViewLine] = (0, import_react6.useState)(null);
+    const handleViewSource = (0, import_react6.useCallback)((file, line) => {
+      setSourceViewFile(file);
+      setSourceViewLine(line || null);
+    }, []);
+    const handleCloseSource = (0, import_react6.useCallback)(() => {
+      setSourceViewFile(null);
+      setSourceViewLine(null);
+    }, []);
+    const sections = (0, import_react6.useMemo)(() => {
       const result = [];
       const add = (id, title, items) => {
         if (items && items.length > 0) result.push({ id, title, items });
@@ -19164,7 +19251,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       add("section-classes", "Classes", m6.classes);
       return result;
     }, [m6]);
-    const siblings = (0, import_react5.useMemo)(() => {
+    const siblings = (0, import_react6.useMemo)(() => {
       if (!docs2 || !entry.source || !entry.source.file) return [];
       const file = entry.source.file;
       const result = [];
@@ -19179,7 +19266,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       result.sort((a16, b2) => a16.name.localeCompare(b2.name));
       return result;
     }, [docs2, entry]);
-    (0, import_react5.useEffect)(() => {
+    (0, import_react6.useEffect)(() => {
       const allItems = sections.flatMap((s11) => s11.items);
       if (allItems.length === 0) return;
       const observer = new IntersectionObserver(
@@ -19199,37 +19286,41 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
       }
       return () => observer.disconnect();
     }, [sections]);
-    return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { className: "entity-page-layout", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p7, { className: "entity-page-content", ref: contentRef, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { align: "center", gap: "3", mb: "2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(e13, { variant: "solid", color: kindColor, size: "2", children: kindLabel }),
-          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(r8, { size: "7", className: "entity-title", children: entry.name })
+    return /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p10, { className: "entity-page-layout", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p7, { className: "entity-page-content", ref: contentRef, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p10, { align: "center", gap: "3", mb: "2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(e13, { variant: "solid", color: kindColor, size: "2", children: kindLabel }),
+          /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(r8, { size: "7", className: "entity-title", children: entry.name })
         ] }),
-        entry.source && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p, { size: "1", color: "gray", className: "source-ref", children: [
-          entry.source.file,
-          entry.source.line ? `:${entry.source.line}` : ""
+        entry.source && /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
+          SourceRef,
+          {
+            file: entry.source.file,
+            line: entry.source.line,
+            onClick: handleViewSource
+          }
+        ),
+        entry.augments && entry.augments.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p10, { gap: "2", mt: "2", align: "center", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p, { size: "2", color: "gray", children: "extends" }),
+          entry.augments.map((a16) => /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(e13, { variant: "outline", color: "gray", children: a16 }, a16))
         ] }),
-        entry.augments && entry.augments.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { gap: "2", mt: "2", align: "center", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p, { size: "2", color: "gray", children: "extends" }),
-          entry.augments.map((a16) => /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(e13, { variant: "outline", color: "gray", children: a16 }, a16))
+        entry.implements && entry.implements.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p10, { gap: "2", mt: "2", align: "center", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p, { size: "2", color: "gray", children: "implements" }),
+          entry.implements.map((i6) => /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(e13, { variant: "outline", color: "gray", children: i6 }, i6))
         ] }),
-        entry.implements && entry.implements.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p10, { gap: "2", mt: "2", align: "center", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p, { size: "2", color: "gray", children: "implements" }),
-          entry.implements.map((i6) => /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(e13, { variant: "outline", color: "gray", children: i6 }, i6))
-        ] }),
-        entry.deprecated && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p7, { className: "deprecated-notice", mt: "3", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p, { size: "2", weight: "medium", color: "red", children: [
+        entry.deprecated && /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p7, { className: "deprecated-notice", mt: "3", children: /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p, { size: "2", weight: "medium", color: "red", children: [
           "Deprecated",
           typeof entry.deprecated === "string" ? `: ${entry.deprecated}` : ""
         ] }) }),
-        entry.description && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(p7, { className: "entity-description", mt: "4", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("div", { dangerouslySetInnerHTML: { __html: entry.description } }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(o19, { size: "4", my: "5" }),
-        entry.signature && /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(p7, { className: "doc-section", mt: "2", children: [
-          entry.kind === "class" && entry.signature.params?.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(r8, { size: "4", mb: "4", className: "section-title", children: "Constructor" }) : null,
-          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(DocEntry, { doclet: entry, isConstructor: entry.kind === "class" })
+        entry.description && /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(p7, { className: "entity-description", mt: "4", children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)("div", { dangerouslySetInnerHTML: { __html: entry.description } }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(o19, { size: "4", my: "5" }),
+        entry.signature && /* @__PURE__ */ (0, import_jsx_runtime18.jsxs)(p7, { className: "doc-section", mt: "2", children: [
+          entry.kind === "class" && entry.signature.params?.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(r8, { size: "4", mb: "4", className: "section-title", children: "Constructor" }) : null,
+          /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(DocEntry, { doclet: entry, isConstructor: entry.kind === "class", onViewSource: handleViewSource })
         ] }),
-        sections.map(({ id, title, items }) => /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Section, { id, title, items }, id))
+        sections.map(({ id, title, items }) => /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(Section, { id, title, items, onViewSource: handleViewSource }, id))
       ] }),
-      (sections.length > 0 || siblings.length > 1) && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+      (sections.length > 0 || siblings.length > 1) && /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
         PageToc,
         {
           sections,
@@ -19238,12 +19329,22 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
           currentSlug: entry.slug,
           onNavigate
         }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
+        SourceView,
+        {
+          open: !!sourceViewFile,
+          onClose: handleCloseSource,
+          file: sourceViewFile,
+          highlightedHtml: sourceViewFile && docs2 ? docs2.source(sourceViewFile) : null,
+          targetLine: sourceViewLine
+        }
       )
     ] });
   }
 
   // src/App.jsx
-  var import_jsx_runtime18 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime19 = __toESM(require_jsx_runtime());
   function getHash() {
     return window.location.hash.slice(1) || "home";
   }
@@ -19259,28 +19360,28 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
     return "dark";
   }
   function App({ docs: docs2 }) {
-    const [currentSlug, setCurrentSlug] = (0, import_react6.useState)(getHash);
-    const [appearance, setAppearance] = (0, import_react6.useState)(getInitialAppearance);
-    (0, import_react6.useEffect)(() => {
+    const [currentSlug, setCurrentSlug] = (0, import_react7.useState)(getHash);
+    const [appearance, setAppearance] = (0, import_react7.useState)(getInitialAppearance);
+    (0, import_react7.useEffect)(() => {
       const handler = () => setCurrentSlug(getHash());
       window.addEventListener("hashchange", handler);
       return () => window.removeEventListener("hashchange", handler);
     }, []);
-    (0, import_react6.useEffect)(() => {
+    (0, import_react7.useEffect)(() => {
       try {
         localStorage.setItem("jsdoc-appearance", appearance);
       } catch (_) {
       }
     }, [appearance]);
-    const toggleAppearance = (0, import_react6.useCallback)(() => {
+    const toggleAppearance = (0, import_react7.useCallback)(() => {
       setAppearance((a16) => a16 === "dark" ? "light" : "dark");
     }, []);
-    const navigate = (0, import_react6.useCallback)((slug) => {
+    const navigate = (0, import_react7.useCallback)((slug) => {
       window.location.hash = slug;
     }, []);
     const currentPage = docs2.page(currentSlug) || docs2.page("home");
-    const content = !currentPage || currentPage.kind === "home" ? /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(HomePage, { readme: docs2.readme, packageInfo: docs2.packageInfo }) : /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(EntityPage, { entry: currentPage, docs: docs2, onNavigate: navigate }, currentSlug);
-    return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
+    const content = !currentPage || currentPage.kind === "home" ? /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(HomePage, { readme: docs2.readme, packageInfo: docs2.packageInfo }) : /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(EntityPage, { entry: currentPage, docs: docs2, onNavigate: navigate }, currentSlug);
+    return /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(
       R2,
       {
         appearance,
@@ -19288,7 +19389,7 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
         grayColor: "slate",
         radius: "medium",
         scaling: "100%",
-        children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
+        children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(
           Layout,
           {
             docs: docs2,
@@ -19304,11 +19405,11 @@ For more information, see https://radix-ui.com/primitives/docs/components/${titl
   }
 
   // src/index.jsx
-  var import_jsx_runtime19 = __toESM(require_jsx_runtime());
+  var import_jsx_runtime20 = __toESM(require_jsx_runtime());
   var docs = globalThis[Symbol.for("jsdoc.content")];
   var root = (0, import_client.createRoot)(document.getElementById("root"));
   root.render(
-    /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(import_react7.default.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime19.jsx)(App, { docs }) })
+    /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(import_react8.default.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime20.jsx)(App, { docs }) })
   );
 })();
 /*! Bundled license information:
