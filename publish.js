@@ -146,7 +146,9 @@ exports.publish = function (taffyData, opts) {
   const contentJs = `;(function() {
 ${docModelSource}
 
-var raw = ${JSON.stringify(rawData)};
+var raw = ${JSON.stringify(rawData, function(key, value) {
+  return typeof value === 'bigint' ? value.toString() : value;
+})};
 
 globalThis[Symbol.for('jsdoc.DocEntry')] = DocEntry;
 globalThis[Symbol.for('jsdoc.DocContent')] = DocContent;

@@ -201,6 +201,13 @@ if (configFile) {
   if (!userConfig.opts.destination) userConfig.opts.destination = path.resolve(output);
   if (readme && !userConfig.opts.readme) userConfig.opts.readme = path.resolve(readme);
 
+  // Inject safe-parser plugin to handle computed Symbol property keys
+  const safeParserPlugin = path.join(templatePath, 'plugins', 'safe-parser.js');
+  userConfig.plugins = userConfig.plugins || [];
+  if (!userConfig.plugins.includes(safeParserPlugin)) {
+    userConfig.plugins.push(safeParserPlugin);
+  }
+
   tmpConfig = path.join(os.tmpdir(), 'jsdoc-react-' + Date.now() + '.json');
   fs.writeFileSync(tmpConfig, JSON.stringify(userConfig, null, 2));
   step('Config', 'merged from ' + configFile);
@@ -209,13 +216,14 @@ if (configFile) {
     source: {
       include: sources.map(s => path.resolve(s)),
       includePattern: '.+\\.(js|jsx|mjs|cjs)$',
+      excludePattern: '(^|\\/|\\\\)(node_modules|dist|build|coverage|\\.)',
     },
     opts: {
       destination: path.resolve(output),
       template: templatePath,
       recurse: true,
     },
-    plugins: ['plugins/markdown'],
+    plugins: ['plugins/markdown', path.join(templatePath, 'plugins', 'safe-parser.js')],
   };
   if (readme) config.opts.readme = path.resolve(readme);
 
