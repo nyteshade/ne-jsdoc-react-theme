@@ -303,4 +303,4 @@ The React app reads the embedded data model and renders everything client-side w
 
 ## License
 
-ISC
+MIT
