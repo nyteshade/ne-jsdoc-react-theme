@@ -1,6 +1,8 @@
 # @nejs/jsdoc-react-theme
 
-A modern JSDoc template built with [React](https://react.dev) and [Radix UI](https://www.radix-ui.com/themes). Generates beautiful API documentation as a single-page app with light/dark mode, full-text search, source code viewer, resizable sidebar, and responsive design.
+## Overview
+
+A modern JSDoc template built with [React](https://react.dev) and [Radix UI](https://www.radix-ui.com/themes). Generates beautiful API documentation as a single-page app with light/dark mode, full-text search, source code viewer, resizable sidebar, and responsive design. **This is my first truly vibe-coded project, built entirely with Claude Code using Opus 4.6**. It has been designed to meet my exacting standards insofar as me not actually coding any of it, but from a directorial perspective.
 
 <p align="center">
   <img src="imgs/light.dark.2.1.0.png" alt="jsdoc-react-theme — light and dark mode" width="720" />
