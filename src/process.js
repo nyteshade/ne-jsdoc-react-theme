@@ -122,11 +122,12 @@ function processDoclets(data, opts) {
     var astInfo = astExports.get(doclet.name);
     if (astInfo && astInfo.children.length > 0) {
       children = mergeAstChildren(children, astInfo, doclet.longname);
-      // Kind correction from AST
-      if (kind === 'constant' && astInfo.type === 'object' && astInfo.children.length > 0) {
+      // Kind correction from AST — instances (new Patch/Extension) and objects
+      // with children should be promoted to 'object' kind
+      if (kind === 'constant' && (astInfo.type === 'object' || astInfo.type === 'instance') && astInfo.children.length > 0) {
         kind = 'object';
       }
-      if (kind === 'member' && astInfo.type === 'object' && astInfo.children.length > 0) {
+      if (kind === 'member' && (astInfo.type === 'object' || astInfo.type === 'instance') && astInfo.children.length > 0) {
         kind = 'object';
       }
     }
@@ -537,6 +538,57 @@ function processDoclets(data, opts) {
       fnNavGroup.items.push({ name: leafPage.name, slug: leafPage.slug });
     } else {
       constNavGroup.items.push({ name: leafPage.name, slug: leafPage.slug });
+    }
+  }
+
+  // Phase 4: AST-only exports — create pages for exports the AST discovered
+  // but JSDoc never created doclets for. These would otherwise be silently lost.
+  for (var _astEntry of astExports.values()) {
+    if (_astEntry.children.length === 0) continue;
+
+    // Skip if we already have a page for this export
+    var alreadyCovered = false;
+    for (var _slug in pages) {
+      if (Object.prototype.hasOwnProperty.call(pages, _slug) && pages[_slug].name === _astEntry.name) {
+        alreadyCovered = true;
+        break;
+      }
+    }
+    if (alreadyCovered) continue;
+
+    // Create a synthetic doclet for this AST-discovered export
+    var syntheticDoclet = {
+      name: _astEntry.name,
+      longname: _astEntry.name,
+      kind: 'constant',
+      scope: 'global',
+      description: '',
+      meta: _astEntry.file ? {
+        shortpath: _astEntry.file,
+        filename: _astEntry.file,
+        lineno: _astEntry.line,
+      } : null,
+    };
+
+    // Look for a real JSDoc doclet with a matching name that might have a description
+    for (var _di = 0; _di < allDoclets.length; _di++) {
+      var _dd = allDoclets[_di];
+      if (_dd.name === _astEntry.name && _dd.description) {
+        syntheticDoclet.description = _dd.classdesc || _dd.description;
+        if (_dd.meta) syntheticDoclet.meta = _dd.meta;
+        break;
+      }
+    }
+
+    var _synPage = buildPage(syntheticDoclet, []);
+    pages[_synPage.slug] = _synPage;
+
+    if (_synPage.kind === 'function') {
+      fnNavGroup.items.push({ name: _synPage.name, slug: _synPage.slug });
+    } else if (_synPage.kind === 'object') {
+      objectNavGroup.items.push({ name: _synPage.name, slug: _synPage.slug });
+    } else {
+      constNavGroup.items.push({ name: _synPage.name, slug: _synPage.slug });
     }
   }
 

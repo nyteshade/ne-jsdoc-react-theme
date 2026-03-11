@@ -332,7 +332,8 @@ function analyzeNode(name, node, file, loc) {
 /**
  * Extract children from an ObjectExpression (const x = { a() {}, b: 1 }).
  */
-function extractObjectChildren(node) {
+function extractObjectChildren(node, maxDepth) {
+  if (maxDepth === undefined) maxDepth = 2;
   var children = [];
 
   for (const prop of node.properties) {
@@ -340,12 +341,21 @@ function extractObjectChildren(node) {
 
     var propName = null;
     if (prop.key) {
-      if (prop.key.type === 'Identifier') propName = prop.key.name;
+      if (prop.key.type === 'Identifier' && !prop.computed) propName = prop.key.name;
       else if (prop.key.type === 'StringLiteral') propName = prop.key.value;
       else if (prop.key.type === 'NumericLiteral') propName = String(prop.key.value);
     }
 
-    if (!propName) continue;
+    if (!propName) {
+      // Computed key (e.g., [Symbol.something] or [Patch.kMutablyHidden]).
+      // If the value is an ObjectExpression, flatten its children into ours
+      // so that methods nested behind computed wrappers are still discovered.
+      var valNode = prop.value || null;
+      if (valNode && valNode.type === 'ObjectExpression' && maxDepth > 0) {
+        children = children.concat(extractObjectChildren(valNode, maxDepth - 1));
+      }
+      continue;
+    }
 
     var kind = 'property';
     if (prop.type === 'ObjectMethod' || (prop.value && (prop.value.type === 'FunctionExpression' || prop.value.type === 'ArrowFunctionExpression'))) {
