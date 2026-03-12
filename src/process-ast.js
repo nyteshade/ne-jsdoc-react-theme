@@ -25,7 +25,7 @@ try {
   // @babel/parser not available — analyzeExports will return empty map
 }
 
-const EXTENSIONS = ['.js', '.mjs', '.cjs', '.jsx'];
+const EXTENSIONS = ['.js', '.mjs', '.cjs', '.jsx', '.flow'];
 
 const BABEL_OPTIONS = {
   sourceType: 'module',
@@ -33,6 +33,7 @@ const BABEL_OPTIONS = {
   allowReturnOutsideFunction: true,
   allowSuperOutsideMethod: true,
   plugins: [
+    'flow',
     'classProperties',
     'classPrivateProperties',
     'classPrivateMethods',
@@ -47,6 +48,197 @@ const BABEL_OPTIONS = {
     'logicalAssignment',
   ],
 };
+
+// ── Flow helpers ─────────────────────────────────────────────
+
+/**
+ * Returns true if the source text contains a @flow pragma.
+ */
+function hasFlowPragma(source) {
+  var head = source.slice(0, 500);
+  return /\/\/\s*@flow\b/.test(head) || /\/\*[\s\S]*?@flow\b[\s\S]*?\*\//.test(head);
+}
+
+/**
+ * Serialize a Flow type annotation node to a human-readable string.
+ */
+function serializeFlowType(node) {
+  if (!node) return '*';
+  switch (node.type) {
+    case 'StringTypeAnnotation': return 'string';
+    case 'NumberTypeAnnotation': return 'number';
+    case 'BooleanTypeAnnotation': return 'boolean';
+    case 'NullLiteralTypeAnnotation': return 'null';
+    case 'VoidTypeAnnotation': return 'void';
+    case 'AnyTypeAnnotation': return 'any';
+    case 'MixedTypeAnnotation': return 'mixed';
+    case 'EmptyTypeAnnotation': return 'empty';
+    case 'SymbolTypeAnnotation': return 'symbol';
+    case 'ExistsTypeAnnotation': return '*';
+    case 'StringLiteralTypeAnnotation': return JSON.stringify(node.value);
+    case 'NumberLiteralTypeAnnotation': return String(node.value);
+    case 'BooleanLiteralTypeAnnotation': return String(node.value);
+    case 'GenericTypeAnnotation': {
+      var name = node.id ? (node.id.name || serializeFlowId(node.id)) : '?';
+      if (node.typeParameters && node.typeParameters.params && node.typeParameters.params.length > 0) {
+        name += '<' + node.typeParameters.params.map(serializeFlowType).join(', ') + '>';
+      }
+      return name;
+    }
+    case 'UnionTypeAnnotation':
+      return (node.types || []).map(serializeFlowType).join(' | ');
+    case 'IntersectionTypeAnnotation':
+      return (node.types || []).map(serializeFlowType).join(' & ');
+    case 'ArrayTypeAnnotation':
+      return 'Array<' + serializeFlowType(node.elementType) + '>';
+    case 'NullableTypeAnnotation':
+      return '?' + serializeFlowType(node.typeAnnotation);
+    case 'TupleTypeAnnotation':
+      return '[' + (node.types || []).map(serializeFlowType).join(', ') + ']';
+    case 'ObjectTypeAnnotation': {
+      var props = extractFlowObjectTypeProperties(node);
+      var parts = props.map(function(p) {
+        return (p.readonly ? '+' : '') + p.name + (p.optional ? '?' : '') + ': ' + p.flowType;
+      });
+      if (node.exact) return '{| ' + parts.join(', ') + ' |}';
+      return '{ ' + parts.join(', ') + ' }';
+    }
+    case 'FunctionTypeAnnotation': {
+      var fparams = (node.params || []).map(function(p) {
+        var pname = p.name ? p.name.name + ': ' : '';
+        return pname + serializeFlowType(p.typeAnnotation);
+      });
+      var fret = serializeFlowType(node.returnType);
+      return '(' + fparams.join(', ') + ') => ' + fret;
+    }
+    case 'TypeofTypeAnnotation':
+      return 'typeof ' + serializeFlowType(node.argument);
+    default:
+      return node.type ? node.type.replace(/TypeAnnotation$/, '') : '*';
+  }
+}
+
+function serializeFlowId(node) {
+  if (!node) return '?';
+  if (node.type === 'Identifier') return node.name;
+  if (node.type === 'QualifiedTypeIdentifier') {
+    return serializeFlowId(node.qualification) + '.' + node.id.name;
+  }
+  return '?';
+}
+
+/**
+ * Extract properties from a Flow ObjectTypeAnnotation or InterfaceDeclaration body.
+ */
+function extractFlowObjectTypeProperties(node) {
+  if (!node) return [];
+  var props = [];
+  var properties = node.properties || [];
+  for (var i = 0; i < properties.length; i++) {
+    var prop = properties[i];
+    if (prop.type === 'ObjectTypeProperty') {
+      var propName = prop.key ? (prop.key.name || prop.key.value || String(prop.key)) : '?';
+      props.push({
+        name: propName,
+        flowType: serializeFlowType(prop.value),
+        optional: !!prop.optional,
+        readonly: !!prop.variance && prop.variance.kind === 'plus',
+      });
+    } else if (prop.type === 'ObjectTypeIndexer') {
+      props.push({
+        name: '[' + (prop.id ? prop.id.name : 'key') + ': ' + serializeFlowType(prop.key) + ']',
+        flowType: serializeFlowType(prop.value),
+        optional: false,
+        readonly: false,
+      });
+    }
+  }
+  return props;
+}
+
+/**
+ * Serialize Flow type parameters (<T, U extends Foo>) to a string like "<T, U>".
+ */
+function serializeTypeParams(node) {
+  if (!node || !node.params || node.params.length === 0) return '';
+  var parts = node.params.map(function(p) {
+    var s = p.name ? p.name.name || p.name : '?';
+    if (p.bound) s += ': ' + serializeFlowType(p.bound.typeAnnotation);
+    return s;
+  });
+  return '<' + parts.join(', ') + '>';
+}
+
+/**
+ * Extract enum member names from a Flow EnumDeclaration body.
+ */
+function extractEnumMembers(body) {
+  if (!body || !body.members) return [];
+  return body.members.map(function(m) {
+    var name = m.id ? m.id.name : '?';
+    var value = m.init ? (m.init.value !== undefined ? String(m.init.value) : null) : null;
+    return value !== null ? name + ' = ' + value : name;
+  });
+}
+
+/**
+ * Extract Flow-typed function parameters.
+ * Returns [{name, flowType, optional, rest}]
+ */
+function extractFlowParams(node) {
+  if (!node || !node.params) return [];
+  var result = [];
+  for (var i = 0; i < node.params.length; i++) {
+    var param = node.params[i];
+    var name = null;
+    var flowType = null;
+    var optional = false;
+    var rest = false;
+
+    if (param.type === 'Identifier') {
+      name = param.name;
+      optional = !!param.optional;
+      if (param.typeAnnotation && param.typeAnnotation.typeAnnotation) {
+        flowType = serializeFlowType(param.typeAnnotation.typeAnnotation);
+      }
+    } else if (param.type === 'AssignmentPattern') {
+      optional = true;
+      if (param.left && param.left.type === 'Identifier') {
+        name = param.left.name;
+        if (param.left.typeAnnotation && param.left.typeAnnotation.typeAnnotation) {
+          flowType = serializeFlowType(param.left.typeAnnotation.typeAnnotation);
+        }
+      }
+    } else if (param.type === 'RestElement') {
+      rest = true;
+      if (param.argument && param.argument.type === 'Identifier') {
+        name = param.argument.name;
+        if (param.argument.typeAnnotation && param.argument.typeAnnotation.typeAnnotation) {
+          flowType = serializeFlowType(param.argument.typeAnnotation.typeAnnotation);
+        }
+      }
+    } else if (param.type === 'ObjectPattern' || param.type === 'ArrayPattern') {
+      name = param.type === 'ObjectPattern' ? '{...}' : '[...]';
+    }
+
+    if (name) {
+      result.push({ name: name, flowType: flowType, optional: optional, rest: rest });
+    }
+  }
+  return result;
+}
+
+/**
+ * Extract the Flow return type annotation from a function node.
+ * Returns a type string or null.
+ */
+function extractFlowReturnType(node) {
+  if (!node) return null;
+  if (node.returnType && node.returnType.typeAnnotation) {
+    return serializeFlowType(node.returnType.typeAnnotation);
+  }
+  return null;
+}
 
 /**
  * Analyze all exports from a source tree.
@@ -106,6 +298,7 @@ function collectFileExports(filePath, sourceRoot, exports, parsed, visiting) {
   const source = fs.readFileSync(resolved, 'utf8');
   const ast = babelParser.parse(source, BABEL_OPTIONS);
   const fileRelative = path.relative(sourceRoot, resolved);
+  const isFlow = hasFlowPragma(source);
 
   // Collect all top-level declarations for reference
   const declarations = new Map(); // name → node
@@ -139,6 +332,10 @@ function collectFileExports(filePath, sourceRoot, exports, parsed, visiting) {
           type: 'function',
           children: extractFunctionParams(decl),
         };
+        if (isFlow) {
+          info.flowParams = extractFlowParams(decl);
+          info.flowReturnType = extractFlowReturnType(decl);
+        }
         attachProperties(info, propertyAttachments);
         fileExports.push(info);
       } else if (decl.type === 'ClassDeclaration' && decl.id) {
@@ -150,6 +347,55 @@ function collectFileExports(filePath, sourceRoot, exports, parsed, visiting) {
           children: extractClassMembers(decl),
         };
         fileExports.push(info);
+      } else if (decl.type === 'TypeAlias') {
+        // export type Foo = Bar
+        fileExports.push({
+          name: decl.id.name,
+          file: fileRelative,
+          line: decl.loc ? decl.loc.start.line : null,
+          type: 'typedef',
+          children: [],
+          isFlowDecl: true,
+          flowType: serializeFlowType(decl.right),
+          typeParams: serializeTypeParams(decl.typeParameters),
+        });
+      } else if (decl.type === 'OpaqueType') {
+        // export opaque type Foo = Bar
+        fileExports.push({
+          name: decl.id.name,
+          file: fileRelative,
+          line: decl.loc ? decl.loc.start.line : null,
+          type: 'typedef',
+          children: [],
+          isFlowDecl: true,
+          opaque: true,
+          flowType: serializeFlowType(decl.impltype || decl.right),
+          typeParams: serializeTypeParams(decl.typeParameters),
+        });
+      } else if (decl.type === 'InterfaceDeclaration') {
+        // export interface Foo { ... }
+        fileExports.push({
+          name: decl.id.name,
+          file: fileRelative,
+          line: decl.loc ? decl.loc.start.line : null,
+          type: 'interface',
+          children: [],
+          isFlowDecl: true,
+          extends: (decl.extends || []).map(function(e) { return e.id ? (e.id.name || '') : ''; }).filter(Boolean),
+          properties: extractFlowObjectTypeProperties(decl.body),
+          typeParams: serializeTypeParams(decl.typeParameters),
+        });
+      } else if (decl.type === 'EnumDeclaration') {
+        // export enum Foo { A, B, C }
+        fileExports.push({
+          name: decl.id.name,
+          file: fileRelative,
+          line: decl.loc ? decl.loc.start.line : null,
+          type: 'typedef',
+          children: [],
+          isFlowDecl: true,
+          enumValues: extractEnumMembers(decl.body),
+        });
       }
     }
 

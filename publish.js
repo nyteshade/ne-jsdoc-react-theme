@@ -57,12 +57,12 @@ exports.publish = function (taffyData, opts) {
       });
     }
     if (doclet.returns) {
-      doclet.returns.forEach(function (r) {
+      doclet.returns.filter(Boolean).forEach(function (r) {
         if (r.description) r.description = helper.resolveLinks(r.description);
       });
     }
     if (doclet.exceptions) {
-      doclet.exceptions.forEach(function (e) {
+      doclet.exceptions.filter(Boolean).forEach(function (e) {
         if (e.description) e.description = helper.resolveLinks(e.description);
       });
     }
@@ -77,22 +77,26 @@ exports.publish = function (taffyData, opts) {
   // Read and render README
   let readme = '';
   if (opts.readme) {
-    const { marked } = require('marked');
+    const { Marked } = require('marked');
+    const { markedHighlight } = require('marked-highlight');
     const hljs = require('highlight.js');
 
-    marked.setOptions({
-      highlight: function (code, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-          return hljs.highlight(code, { language: lang }).value;
-        }
-        return hljs.highlightAuto(code).value;
-      },
-    });
+    const markedInstance = new Marked(
+      markedHighlight({
+        langPrefix: 'hljs language-',
+        highlight(code, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
+          }
+          return hljs.highlightAuto(code).value;
+        },
+      })
+    );
 
     if (opts.readme.startsWith('<')) {
       readme = opts.readme;
     } else if (fs.existsSync(opts.readme)) {
-      readme = marked.parse(fs.readFileSync(opts.readme, 'utf8'));
+      readme = markedInstance.parse(fs.readFileSync(opts.readme, 'utf8'));
     }
   }
 

@@ -32,11 +32,13 @@
     "react"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
+    "@babel/parser": "^7.24.0",
     "highlight.js": "^11.9.0",
     "jsdoc": "^4.0.0",
-    "marked": "^12.0.0"
+    "marked": "^12.0.0",
+    "marked-highlight": "^2.1.0"
   },
   "devDependencies": {
     "@radix-ui/react-icons": "^1.3.0",

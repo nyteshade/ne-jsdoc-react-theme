@@ -4,3 +4,4 @@ test/cli-output/
 test/repos/
 *.map
 test/
+.claude

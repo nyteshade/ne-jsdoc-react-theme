@@ -1,21 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Box, Flex, Heading, Text, Badge, Separator } from '@radix-ui/themes';
 import { ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons';
-import { DocEntry } from './DocEntry';
+import { DocEntry, TypeMetaBlock } from './DocEntry';
 import { SourceView, SourceRef } from './SourceView';
-
-const KIND_COLORS = {
-  class: 'red',
-  interface: 'orange',
-  mixin: 'plum',
-  namespace: 'green',
-  function: 'green',
-  object: 'cyan',
-  constant: 'blue',
-  property: 'blue',
-  typedef: 'orange',
-  event: 'plum',
-};
+import { KIND_COLORS } from './constants.js';
 
 // ── Section component with anchored ID ───────────────────
 
@@ -265,6 +253,13 @@ export function EntityPage({ entry, docs, onNavigate }) {
         {entry.description && (
           <Box className="entity-description" mt="4">
             <div dangerouslySetInnerHTML={{ __html: entry.description }} />
+          </Box>
+        )}
+
+        {/* Flow type definition (for Flow-sourced typedefs and interfaces) */}
+        {entry.typeMeta && (
+          <Box mt="4">
+            <TypeMetaBlock typeMeta={entry.typeMeta} />
           </Box>
         )}
 

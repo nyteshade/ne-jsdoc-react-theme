@@ -19,23 +19,16 @@ import {
   SunIcon,
   MoonIcon,
 } from '@radix-ui/react-icons';
+import { KIND_COLORS } from './constants.js';
 
 const MIN_SIDEBAR = 200;
 const MAX_SIDEBAR = 480;
 const DEFAULT_SIDEBAR = 280;
 
-const KIND_COLORS = {
-  class: 'red',
-  interface: 'orange',
-  mixin: 'plum',
-  namespace: 'green',
-  function: 'green',
-  object: 'cyan',
-  constant: 'blue',
-  property: 'blue',
-  typedef: 'orange',
-  event: 'plum',
-};
+function truncateHtml(html, maxLen) {
+  const plain = html.replace(/<[^>]*>/g, '');
+  return plain.length > maxLen ? plain.slice(0, maxLen) + '\u2026' : plain;
+}
 
 export function Layout({ docs, currentSlug, onNavigate, appearance, onToggleAppearance, children }) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -248,7 +241,7 @@ export function Layout({ docs, currentSlug, onNavigate, appearance, onToggleAppe
                     <span className="nav-group-count">{group.items.length}</span>
                   </div>
                   <Flex direction="column" gap="0" mt="1">
-                    {[...group.items].sort((a, b) => a.name.localeCompare(b.name)).map((item) => {
+                    {group.items.map((item) => {
                       const isActive = currentSlug === item.slug;
                       return (
                         <a
@@ -346,12 +339,9 @@ export function Layout({ docs, currentSlug, onNavigate, appearance, onToggleAppe
                     <Text size="2" weight="medium">{result.entry.name}</Text>
                   </Flex>
                   {result.entry.description && (
-                    <Text
-                      size="1"
-                      color="gray"
-                      className="search-result-desc"
-                      dangerouslySetInnerHTML={{ __html: result.entry.description.slice(0, 100) }}
-                    />
+                    <Text size="1" color="gray" className="search-result-desc">
+                      {truncateHtml(result.entry.description, 100)}
+                    </Text>
                   )}
                 </a>
               ))

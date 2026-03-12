@@ -215,7 +215,7 @@ if (configFile) {
   const config = {
     source: {
       include: sources.map(s => path.resolve(s)),
-      includePattern: '.+\\.(js|jsx|mjs|cjs)$',
+      includePattern: '.+\\.(js|jsx|mjs|cjs|flow)$',
       excludePattern: '(^|\\/|\\\\)(node_modules|dist|build|coverage|\\.)',
     },
     opts: {
@@ -243,7 +243,7 @@ try {
   const result = execFileSync(process.execPath, [jsdocBin, '-c', tmpConfig], {
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env, JSDOC_REACT_QUIET: quiet ? '1' : '' },
+    env: { ...process.env },
   });
 
   const elapsed = Date.now() - startTime;
@@ -296,7 +296,10 @@ try {
   const fatalErrors = [];
 
   for (const line of errorLines) {
-    if (line.includes('Unable to parse a tag')) {
+    if (line.includes('Unable to parse a tag') ||
+        line.includes('tag requires a value') ||
+        line.includes('JSDoc comment') ||
+        line.includes('Unknown tag')) {
       parseErrors.push(line);
     } else if (line.trim()) {
       fatalErrors.push(line);
@@ -368,7 +371,7 @@ function countFiles(dir) {
           entry.name === 'build' || entry.name.startsWith('.')) continue;
       if (entry.isDirectory()) {
         count += countFiles(path.join(dir, entry.name));
-      } else if (/\.(js|jsx|mjs|cjs)$/.test(entry.name)) {
+      } else if (/\.(js|jsx|mjs|cjs|flow)$/.test(entry.name)) {
         count++;
       }
     }

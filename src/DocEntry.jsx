@@ -283,10 +283,32 @@ function MetaBadges({ doclet }) {
   if (doclet.readonly) {
     badges.push(<Badge key="ro" variant="surface" color="gray" size="1">readonly</Badge>);
   }
+  if (doclet.typeMeta?.opaque) {
+    badges.push(<Badge key="opaque" variant="surface" color="amber" size="1">opaque</Badge>);
+  }
   if (doclet.since) {
     badges.push(<Badge key="since" variant="outline" color="gray" size="1">since {doclet.since}</Badge>);
   }
   return badges.length > 0 ? <Flex gap="1">{badges}</Flex> : null;
+}
+
+export function TypeMetaBlock({ typeMeta }) {
+  if (!typeMeta) return null;
+  const parts = [];
+  if (typeMeta.typeParams) parts.push(typeMeta.typeParams);
+  if (typeMeta.type) parts.push('= ' + typeMeta.type);
+  if (typeMeta.enumValues && typeMeta.enumValues.length > 0) {
+    parts.push('{ ' + typeMeta.enumValues.join(', ') + ' }');
+  }
+  if (parts.length === 0) return null;
+  return (
+    <Box mt="2" className="flow-type-block">
+      <Text size="1" color="gray" weight="medium" className="subsection-label">Flow Type</Text>
+      <Box mt="1">
+        <Code size="2" className="flow-type-code">{parts.join(' ')}</Code>
+      </Box>
+    </Box>
+  );
 }
 
 function SeeAlso({ see }) {
@@ -368,6 +390,7 @@ export function DocEntry({ doclet, isConstructor = false, onViewSource }) {
       )}
 
       {isCallable && <ParamsTable params={sig.params} />}
+      {isTypedef && <TypeMetaBlock typeMeta={doclet.typeMeta} />}
       {isTypedef && <PropertiesTable properties={doclet.properties} />}
       {isTypedef && <ParamsTable params={sig.params} />}
       {isEvent && <ParamsTable params={sig.params} />}

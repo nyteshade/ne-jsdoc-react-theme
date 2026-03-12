@@ -111,8 +111,8 @@ function processDoclets(data, opts) {
     if (kind === 'function' || (doclet.params && doclet.params.length > 0) || (doclet.returns && doclet.returns.length > 0)) {
       signature = {
         params: (doclet.params || []).map(serializeParam),
-        returns: (doclet.returns || []).map(serializeReturn),
-        exceptions: (doclet.exceptions || []).map(serializeReturn),
+        returns: (doclet.returns || []).filter(Boolean).map(serializeReturn),
+        exceptions: (doclet.exceptions || []).filter(Boolean).map(serializeReturn),
         async: !!doclet.async,
         generator: !!doclet.generator,
       };
@@ -129,6 +129,44 @@ function processDoclets(data, opts) {
       }
       if (kind === 'member' && (astInfo.type === 'object' || astInfo.type === 'instance') && astInfo.children.length > 0) {
         kind = 'object';
+      }
+    }
+
+    // Flow enrichment: back-fill param types and return type from Flow annotations
+    // when JSDoc has no type info. Does not override existing JSDoc type annotations.
+    if (astInfo && signature) {
+      var flowParams = astInfo.flowParams;
+      var flowReturnType = astInfo.flowReturnType;
+      if (flowParams && flowParams.length > 0) {
+        if (signature.params.length === 0) {
+          // No JSDoc params — synthesize from Flow types
+          signature.params = flowParams.map(function(fp) {
+            return {
+              name: fp.name,
+              type: fp.flowType ? [fp.flowType] : null,
+              description: '',
+              optional: fp.optional || false,
+              nullable: false,
+              variable: fp.rest || false,
+              defaultvalue: null,
+            };
+          });
+        } else {
+          // JSDoc params exist — back-fill missing types only
+          signature.params = signature.params.map(function(p) {
+            if (!p.type || p.type.length === 0) {
+              for (var pi = 0; pi < flowParams.length; pi++) {
+                if (flowParams[pi].name === p.name && flowParams[pi].flowType) {
+                  return Object.assign({}, p, { type: [flowParams[pi].flowType] });
+                }
+              }
+            }
+            return p;
+          });
+        }
+      }
+      if (flowReturnType && signature.returns.length === 0) {
+        signature.returns = [{ type: [flowReturnType], description: '' }];
       }
     }
 
@@ -152,6 +190,23 @@ function processDoclets(data, opts) {
       readonly: !!doclet.readonly,
       defaultvalue: doclet.defaultvalue !== undefined ? String(doclet.defaultvalue) : null,
       type: doclet.type && doclet.type.names ? doclet.type.names : null,
+      properties: doclet.properties
+        ? doclet.properties.map(function(p) {
+            return {
+              name: p.name,
+              type: p.type && p.type.names ? p.type.names : null,
+              description: p.description || '',
+              optional: !!p.optional,
+            };
+          })
+        : null,
+      typeMeta: (doclet.flowType || doclet.opaque || doclet.enumValues) ? {
+        system: 'flow',
+        type: doclet.flowType || null,
+        opaque: doclet.opaque || false,
+        typeParams: doclet.flowTypeParams || null,
+        enumValues: doclet.enumValues || null,
+      } : null,
       members: categorizeChildren(children, kind),
     };
   }
@@ -162,8 +217,8 @@ function processDoclets(data, opts) {
     if (doclet.kind === 'function' || (doclet.params && doclet.params.length > 0)) {
       signature = {
         params: (doclet.params || []).map(serializeParam),
-        returns: (doclet.returns || []).map(serializeReturn),
-        exceptions: (doclet.exceptions || []).map(serializeReturn),
+        returns: (doclet.returns || []).filter(Boolean).map(serializeReturn),
+        exceptions: (doclet.exceptions || []).filter(Boolean).map(serializeReturn),
         async: !!doclet.async,
         generator: !!doclet.generator,
       };
@@ -543,8 +598,12 @@ function processDoclets(data, opts) {
 
   // Phase 4: AST-only exports — create pages for exports the AST discovered
   // but JSDoc never created doclets for. These would otherwise be silently lost.
+  // Also handles Flow type declarations (TypeAlias, OpaqueType, InterfaceDeclaration, Enum).
+  var flowNavItems = [];
+
   for (var _astEntry of astExports.values()) {
-    if (_astEntry.children.length === 0) continue;
+    // Flow declarations may have no children — allow them through; skip other childless entries
+    if (!_astEntry.isFlowDecl && _astEntry.children.length === 0) continue;
 
     // Skip if we already have a page for this export
     var alreadyCovered = false;
@@ -560,7 +619,7 @@ function processDoclets(data, opts) {
     var syntheticDoclet = {
       name: _astEntry.name,
       longname: _astEntry.name,
-      kind: 'constant',
+      kind: _astEntry.isFlowDecl ? _astEntry.type : 'constant',
       scope: 'global',
       description: '',
       meta: _astEntry.file ? {
@@ -569,6 +628,21 @@ function processDoclets(data, opts) {
         lineno: _astEntry.line,
       } : null,
     };
+
+    // Carry Flow-specific fields onto the synthetic doclet for buildPage
+    if (_astEntry.isFlowDecl) {
+      syntheticDoclet.flowType = _astEntry.flowType || null;
+      syntheticDoclet.flowTypeParams = _astEntry.typeParams || null;
+      syntheticDoclet.opaque = _astEntry.opaque || false;
+      syntheticDoclet.enumValues = _astEntry.enumValues || null;
+      syntheticDoclet.augments = _astEntry.extends || [];
+      // Convert Flow interface properties to JSDoc property format for PropertiesTable
+      if (_astEntry.properties && _astEntry.properties.length > 0) {
+        syntheticDoclet.properties = _astEntry.properties.map(function(p) {
+          return { name: p.name, type: { names: [p.flowType] }, description: '', optional: p.optional };
+        });
+      }
+    }
 
     // Look for a real JSDoc doclet with a matching name that might have a description
     for (var _di = 0; _di < allDoclets.length; _di++) {
@@ -583,7 +657,10 @@ function processDoclets(data, opts) {
     var _synPage = buildPage(syntheticDoclet, []);
     pages[_synPage.slug] = _synPage;
 
-    if (_synPage.kind === 'function') {
+    if (_astEntry.isFlowDecl) {
+      // Flow declarations are routed to type/interface nav groups later
+      flowNavItems.push({ kind: _synPage.kind, name: _synPage.name, slug: _synPage.slug });
+    } else if (_synPage.kind === 'function') {
       fnNavGroup.items.push({ name: _synPage.name, slug: _synPage.slug });
     } else if (_synPage.kind === 'object') {
       objectNavGroup.items.push({ name: _synPage.name, slug: _synPage.slug });
@@ -606,18 +683,51 @@ function processDoclets(data, opts) {
     nav.push(constNavGroup);
   }
 
-  // ── Process typedefs ─────────────────────────────────────
+  // ── Merge Flow interfaces into Interfaces nav group ───────
+  // Done before typedefs so the nav order is: Interfaces → Type Definitions
+
+  var flowInterfaces = flowNavItems.filter(function(n) { return n.kind === 'interface'; });
+  if (flowInterfaces.length > 0) {
+    var existingIfaceGroup = null;
+    for (var _gi = 0; _gi < nav.length; _gi++) {
+      if (nav[_gi].title === 'Interfaces') { existingIfaceGroup = nav[_gi]; break; }
+    }
+    if (existingIfaceGroup) {
+      for (var _fi = 0; _fi < flowInterfaces.length; _fi++) {
+        var _fiName = flowInterfaces[_fi].name;
+        if (!existingIfaceGroup.items.some(function(ni) { return ni.name === _fiName; })) {
+          existingIfaceGroup.items.push({ name: _fiName, slug: flowInterfaces[_fi].slug });
+        }
+      }
+      existingIfaceGroup.items.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    } else {
+      var flowIfaceGroup = { title: 'Interfaces', items: flowInterfaces.map(function(n) { return { name: n.name, slug: n.slug }; }) };
+      flowIfaceGroup.items.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      nav.push(flowIfaceGroup);
+    }
+  }
+
+  // ── Process typedefs (JSDoc + Flow) ──────────────────────
 
   var allTypedefs = query({ kind: 'typedef' })
     .filter(function (d) { return !seen.has(d.longname); });
+  var flowTypedefs = flowNavItems.filter(function(n) { return n.kind === 'typedef'; });
 
-  if (allTypedefs.length > 0) {
+  if (allTypedefs.length > 0 || flowTypedefs.length > 0) {
     var typeNavGroup = { title: 'Type Definitions', items: [] };
     for (var t = 0; t < allTypedefs.length; t++) {
       seen.add(allTypedefs[t].longname);
       var typePage = buildPage(allTypedefs[t], []);
       pages[typePage.slug] = typePage;
       typeNavGroup.items.push({ name: typePage.name, slug: typePage.slug });
+    }
+    // Add Flow-sourced typedef pages (already in pages{}, just need nav entries).
+    // Skip if a JSDoc typedef with the same name was already added above.
+    for (var ft = 0; ft < flowTypedefs.length; ft++) {
+      var _ftName = flowTypedefs[ft].name;
+      if (!typeNavGroup.items.some(function(ni) { return ni.name === _ftName; })) {
+        typeNavGroup.items.push({ name: _ftName, slug: flowTypedefs[ft].slug });
+      }
     }
     typeNavGroup.items.sort(function (a, b) { return a.name.localeCompare(b.name); });
     nav.push(typeNavGroup);

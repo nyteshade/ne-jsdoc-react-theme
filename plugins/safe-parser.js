@@ -3,13 +3,16 @@
 /**
  * JSDoc plugin: safe-parser
  *
- * Works around JSDoc 4.x crashes caused by computed property keys
- * like [Symbol.for('...')] and [Symbol.toStringTag]. JSDoc's parser
- * returns a null doclet for these nodes, then crashes when trying to
- * access .memberof on null.
+ * Applies two patches to JSDoc 4.x:
  *
- * This plugin monkey-patches Parser.prototype.astnodeToMemberof to
- * return an empty string instead of crashing on a null doclet.
+ * 1. Monkey-patches Parser.prototype.astnodeToMemberof to handle computed
+ *    property keys like [Symbol.for('...')] and [Symbol.toStringTag] without
+ *    crashing when the doclet is null.
+ *
+ * 2. Enables the Flow type annotation plugin in JSDoc's internal @babel/parser
+ *    options so that files with // @flow pragmas and Flow type syntax parse
+ *    correctly instead of throwing "This experimental syntax requires enabling
+ *    one of the following parser plugin(s): flow".
  */
 
 let patched = false;
@@ -19,6 +22,7 @@ exports.handlers = {
     if (patched) return;
     patched = true;
 
+    // ── Patch 1: Handle computed Symbol property keys ─────
     try {
       const Parser = require('jsdoc/lib/jsdoc/src/parser').Parser;
       const original = Parser.prototype.astnodeToMemberof;
@@ -39,7 +43,22 @@ exports.handlers = {
       }
     } catch (_) {
       // If we can't patch (different JSDoc version, etc.), just continue.
-      // The worst case is the original crash still happens.
+    }
+
+    // ── Patch 2: Enable Flow plugin in JSDoc's babel parser ─
+    // JSDoc uses @babel/parser internally (jsdoc/lib/jsdoc/src/astbuilder.js)
+    // and exports parserOptions so plugins can extend them.
+    // Note: 'flow' and 'typescript' are mutually exclusive in @babel/parser.
+    // JSDoc's default options do not include 'typescript', so this is safe.
+    try {
+      const astbuilder = require('jsdoc/lib/jsdoc/src/astbuilder');
+      if (astbuilder.parserOptions && Array.isArray(astbuilder.parserOptions.plugins)) {
+        if (!astbuilder.parserOptions.plugins.includes('flow')) {
+          astbuilder.parserOptions.plugins.push('flow');
+        }
+      }
+    } catch (_) {
+      // If astbuilder is unavailable or structured differently, skip gracefully.
     }
   },
 };

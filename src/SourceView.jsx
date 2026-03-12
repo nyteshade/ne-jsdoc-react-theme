@@ -27,7 +27,7 @@ export function SourceView({ open, onClose, file, highlightedHtml, targetLine })
   if (!open) return null;
 
   // Split highlighted HTML into lines
-  const lines = highlightedHtml ? highlightedHtml.split('\n') : null;
+  const lines = highlightedHtml ? highlightedHtml.split(/\r?\n/) : null;
 
   return (
     <Dialog.Root open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
